@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Classroom AI Studio v1.0</title>
+<style>
+/*FONT_CSS*/
+[hidden]{display:none!important}
+:root{
+  --bg:#0b1220; --panel:#121b2c; --panel2:#18233a; --line:#26354d;
+  --text:#eef2f7; --muted:#9aa8bc; --accent:#f5b841; --danger:#ff5a5a; --ok:#3ecf8e;
+  --radius:10px; --font:"AtkinsonHL", system-ui, "Segoe UI", sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.app{display:grid;grid-template-rows:56px 1fr;height:100vh}
+/* top bar */
+.top{display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{font-weight:700;font-size:16px;white-space:nowrap}
+.brand small{color:var(--muted);font-weight:400;margin-left:6px}
+.spacer{flex:1}
+.btn{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:8px 14px;min-height:38px;display:inline-flex;align-items:center;gap:8px}
+.btn:hover{border-color:#3a4d6d}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#141414;font-weight:700}
+.btn.rec{background:#c62d2d;border-color:#c62d2d;color:#fff;font-weight:700}
+.btn.rec.on{background:#fff;color:#c62d2d}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.small{padding:5px 10px;min-height:30px;font-size:13px}
+.status{color:var(--muted);font-size:13px;white-space:nowrap}
+.status .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#5b6b82;margin-right:6px;vertical-align:middle}
+.status.live .dot{background:var(--ok)}
+.timer{font-variant-numeric:tabular-nums;font-weight:700;min-width:64px;text-align:right}
+.timer.on{color:#ff7b7b}
+/* main */
+.main{display:grid;grid-template-columns:64px 1fr 340px;min-height:0}
+.rail{display:flex;flex-direction:column;gap:6px;padding:10px 8px;border-right:1px solid var(--line);background:var(--panel);overflow-y:auto}
+.tool{width:48px;height:48px;border-radius:10px;border:1px solid transparent;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;gap:2px;color:var(--muted)}
+.tool svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tool:hover{background:var(--panel2);color:var(--text)}
+.tool.active{background:var(--panel2);border-color:var(--accent);color:var(--accent)}
+.rail hr{border:0;border-top:1px solid var(--line);width:100%;margin:4px 0}
+.swatches{display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid transparent}
+.sw.active{border-color:#fff;box-shadow:0 0 0 2px var(--bg)}
+.center{display:flex;flex-direction:column;min-width:0;min-height:0;padding:14px;gap:10px}
+.stagewrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+.stagebox{position:relative;aspect-ratio:16/9;max-width:100%;max-height:100%;width:100%;border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px var(--line),0 10px 30px rgba(0,0,0,.35)}
+.stagebox canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#overlay{pointer-events:none}
+.stagebox.tool-pen #stage,.stagebox.tool-highlight #stage{cursor:crosshair}
+.stagebox.tool-spot #stage,.stagebox.tool-zoom #stage{cursor:cell}
+.stagebox.tool-callout #stage{cursor:text}
+.stagebox.tool-badge #stage{cursor:copy}
+.callout-input{position:absolute;z-index:5;min-width:220px;padding:8px 10px;border-radius:8px;border:2px solid var(--accent);background:#fff;color:#0e1726;font-size:16px}
+.hint{color:var(--muted);font-size:13px;text-align:center}
+.hint kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--panel);color:var(--text);font-family:inherit;font-size:12px}
+/* sidebar */
+.side{border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.privacy{margin:10px;padding:10px 12px;border-radius:8px;background:rgba(245,184,65,.12);border:1px solid rgba(245,184,65,.4);font-size:13px;display:flex;gap:8px;align-items:flex-start}
+.privacy button{margin-left:auto;background:none;border:0;color:var(--muted);font-size:18px;line-height:1;padding:0 2px}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:10px 4px;color:var(--muted);font-weight:700}
+.tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent)}
+.pane{padding:14px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px}
+.pane > .btn{align-self:flex-start}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted)}
+textarea,input[type=text],select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+textarea{resize:vertical;min-height:220px;line-height:1.45}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted);font-size:13px}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:16px;text-align:center;color:var(--muted);font-size:13px}
+.drop.over{border-color:var(--accent);color:var(--text)}
+.srcs{display:flex;flex-direction:column;gap:6px}
+.src{display:grid;grid-template-columns:56px 1fr auto;gap:8px;align-items:center;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--bg);cursor:pointer}
+.src.active{border-color:var(--accent)}
+.src .th{width:56px;height:40px;border-radius:4px;background:#222c40 center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);font-weight:700}
+.src .nm{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src .nm small{display:block;color:var(--muted)}
+.src .acts{display:flex;gap:2px}
+.src .acts button{background:none;border:0;color:var(--muted);width:26px;height:26px;border-radius:6px}
+.src .acts button:hover{background:var(--panel2);color:var(--text)}
+.meter{height:8px;border-radius:4px;background:var(--bg);overflow:hidden;border:1px solid var(--line)}
+.meter i{display:block;height:100%;width:0;background:var(--ok);transition:width .08s}
+fieldset{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:10px;margin:0}
+legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
+.check{display:flex;gap:8px;align-items:center;font-size:14px}
+.check input{width:18px;height:18px;accent-color:var(--accent)}
+/* overlays */
+.countdown{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,9,16,.6);font-size:140px;font-weight:700;z-index:50;color:#fff}
+.modal-bg{position:fixed;inset:0;background:rgba(5,9,16,.65);display:flex;align-items:center;justify-content:center;z-index:40}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;width:min(560px,92vw);max-height:88vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.modal h2{margin:0;font-size:18px}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px}
+.keys kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 7px;background:var(--bg);font-family:inherit}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#1f2b44;border:1px solid var(--line);padding:10px 16px;border-radius:10px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:14px;max-width:80vw}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">Classroom AI Studio<small>v1.0</small></div>
+    <button class="btn primary" id="btnConnect" title="Share the browser tab with your AI tool">Connect AI tab</button>
+    <span class="status" id="aiStatus"><span class="dot"></span>AI tab not connected</span>
+    <div class="spacer"></div>
+    <span class="status" id="micStatus">Mic off</span>
+    <span class="timer" id="timer">00:00</span>
+    <button class="btn" id="btnPause" disabled title="Pause or resume (F8)">Pause</button>
+    <button class="btn rec" id="btnRecord" title="Start or stop recording (F9)">&#9679; Record</button>
+    <button class="btn small" id="btnHelp" title="Keyboard shortcuts (?)">?</button>
+  </header>
+
+  <div class="main">
+    <nav class="rail" aria-label="Drawing tools">
+      <button class="tool active" data-tool="none" title="No tool (V or Esc)"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-2 6z"/></svg>Off</button>
+      <button class="tool" data-tool="pen" title="Pen (P)"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg>Pen</button>
+      <button class="tool" data-tool="highlight" title="Highlighter (H)"><svg viewBox="0 0 24 24"><path d="M9 15l-4 4h5l2-2"/><path d="M8 12l7-7 4 4-7 7-4 0z"/></svg>Mark</button>
+      <button class="tool" data-tool="spot" title="Spotlight (S): drag a box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Spot</button>
+      <button class="tool" data-tool="zoom" title="Zoom (Z): drag a box. Esc zooms out"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6M10 7v6M7 10h6"/></svg>Zoom</button>
+      <button class="tool" data-tool="callout" title="Callout (T): click, or drag from the target to where the box goes"><svg viewBox="0 0 24 24"><path d="M4 5h16v10H10l-4 4v-4H4z"/></svg>Note</button>
+      <button class="tool" data-tool="badge" title="Step badge (B): click to place 1, 2, 3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M11 9l2-1v8"/></svg>Badge</button>
+      <hr>
+      <div class="swatches" id="swatches" aria-label="Pen color"></div>
+      <hr>
+      <button class="tool" id="btnUndo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 010 12h-2"/></svg>Undo</button>
+      <button class="tool" id="btnClear" title="Clear all marks (C)"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Clear</button>
+      <button class="tool" id="btnReset" title="Reset zoom and spotlight (Esc)"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>Reset</button>
+    </nav>
+
+    <section class="center">
+      <div class="stagewrap" id="stagewrap">
+        <div class="stagebox" id="stagebox">
+          <canvas id="stage" width="1920" height="1080" aria-label="Recording stage"></canvas>
+          <canvas id="overlay" width="1920" height="1080" aria-hidden="true"></canvas>
+          <input class="callout-input" id="calloutInput" type="text" placeholder="Type your note, press Enter" hidden>
+        </div>
+      </div>
+      <div class="hint"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> steps &nbsp; <kbd>[</kbd> <kbd>]</kbd> sources &nbsp; <kbd>PgUp</kbd> <kbd>PgDn</kbd> PDF pages &nbsp; <kbd>Esc</kbd> zoom out &nbsp; <kbd>F9</kbd> record &nbsp; <kbd>?</kbd> all keys. Only the stage is recorded.</div>
+    </section>
+
+    <aside class="side">
+      <div class="privacy" id="privacy"><span>Before you connect: close email, school accounts and anything with student names. Use made-up examples only.</span><button id="privacyX" aria-label="Dismiss">&times;</button></div>
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-tab="steps">Steps</button>
+        <button role="tab" aria-selected="false" data-tab="sources">Sources</button>
+        <button role="tab" aria-selected="false" data-tab="settings">Settings</button>
+      </div>
+
+      <div class="pane" data-pane="steps">
+        <label class="f"><span>One step per line. Start a line with <b>Tip:</b> or <b>Hint:</b> to attach it to the step above.</span>
+          <textarea id="stepsText" spellcheck="true" placeholder="Copy your lesson passage&#10;Open ChatGPT and paste the prompt&#10;Tip: The prompt is in the description&#10;Check the reading level in Word&#10;Fix it with a follow-up prompt"></textarea>
+        </label>
+        <div class="row">
+          <button class="btn" id="stepPrev">&larr; Back</button>
+          <button class="btn primary" id="stepNext">Next &rarr;</button>
+          <span class="muted" id="stepCount">No steps yet</span>
+        </div>
+        <button class="btn small" id="stepRestart">Back to step 1</button>
+      </div>
+
+      <div class="pane" data-pane="sources" hidden>
+        <div class="drop" id="drop">Drag pictures or PDFs here<br>or<br><button class="btn small" id="btnAddFiles">Add files</button> <button class="btn small" id="btnAddText">Add text card</button></div>
+        <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.pdf" multiple hidden>
+        <div class="srcs" id="srcList"></div>
+        <div class="row" id="pdfNav" hidden>
+          <button class="btn small" id="pgPrev">&larr; Page</button>
+          <span class="muted" id="pgLabel"></span>
+          <button class="btn small" id="pgNext">Page &rarr;</button>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="settings" hidden>
+        <fieldset><legend>Microphone</legend>
+          <select id="micSelect" aria-label="Microphone"><option value="">Default microphone</option></select>
+          <div class="row"><button class="btn small" id="btnMic">Turn on mic</button><span class="muted">Talk to test the level.</span></div>
+          <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+          <label class="check"><input type="checkbox" id="optTabAudio"> Record sound from the AI tab</label>
+          <span class="muted">Applies the next time you connect. In Chrome's share box, also tick "Also share tab audio". Wear headphones so the mic doesn't pick it up twice.</span>
+        </fieldset>
+        <fieldset><legend>Stage</legend>
+          <label class="f">Left panel label<input type="text" id="lblSteps" maxlength="24"></label>
+          <label class="f">Middle panel label<input type="text" id="lblAi" maxlength="24"></label>
+          <label class="f">Right panel label<input type="text" id="lblSources" maxlength="24"></label>
+          <label class="check"><input type="checkbox" id="optWatermark"> Show channel name on the stage</label>
+          <label class="f">Channel name<input type="text" id="wmText" maxlength="40"></label>
+          <label class="f">Accent color<input type="color" id="accent"></label>
+          <label class="check"><input type="checkbox" id="optClearOnStep"> Clear marks when I change steps</label>
+        </fieldset>
+        <fieldset><legend>Project</legend>
+          <span class="muted">Saves your steps, sources and labels in one file on your computer.</span>
+          <div class="row"><button class="btn small" id="btnSaveProj">Save project</button><button class="btn small" id="btnOpenProj">Open project</button><button class="btn small" id="btnNewProj">New</button></div>
+          <input type="file" id="projInput" accept=".json,application/json" hidden>
+        </fieldset>
+        <p class="muted" id="recInfo"></p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="modal-bg" id="helpModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <h2 id="helpTitle">Keyboard shortcuts</h2>
+    <div class="keys">
+      <kbd>F9</kbd><span>Start or stop recording</span>
+      <kbd>F8</kbd><span>Pause or resume recording</span>
+      <kbd>&rarr; / &larr;</kbd><span>Next or previous step</span>
+      <kbd>] / [</kbd><span>Next or previous source</span>
+      <kbd>PgDn / PgUp</kbd><span>Next or previous PDF page</span>
+      <kbd>V</kbd><span>No tool</span>
+      <kbd>P</kbd><span>Pen</span>
+      <kbd>H</kbd><span>Highlighter</span>
+      <kbd>S</kbd><span>Spotlight: drag a box</span>
+      <kbd>Z</kbd><span>Zoom: drag a box</span>
+      <kbd>T</kbd><span>Callout: click, or drag from the target</span>
+      <kbd>B</kbd><span>Step badge</span>
+      <kbd>1-4</kbd><span>Pen color</span>
+      <kbd>Ctrl+Z</kbd><span>Undo last mark</span>
+      <kbd>C</kbd><span>Clear all marks</span>
+      <kbd>Esc</kbd><span>Zoom out, remove spotlight, drop the tool</span>
+    </div>
+    <p class="muted">Tip: you can switch to your AI tab to type; the stage keeps recording what that tab shows. Test with a 30-second recording first.</p>
+    <div class="row"><button class="btn primary" id="helpClose">Close</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="textModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="textTitle">
+    <h2 id="textTitle">Text card</h2>
+    <label class="f">Title<input type="text" id="tcTitle" maxlength="80"></label>
+    <label class="f">Text<textarea id="tcBody" style="min-height:160px"></textarea></label>
+    <div class="row"><button class="btn primary" id="tcSave">Add card</button><button class="btn" id="tcCancel">Cancel</button></div>
+  </div>
+</div>
+
+<div class="countdown" id="countdown" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<!--PDFJS-->
+<!--PDFWORKER-->
+<script>
+"use strict";
+/* ============ constants & state ============ */
+const VERSION = "1.0";
+const W = 1920, H = 1080;
+const $ = (id) => document.getElementById(id);
+const stage = $("stage"), ctx = stage.getContext("2d");
+const overlay = $("overlay"), octx = overlay.getContext("2d");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const PEN_COLORS = ["#ff5a5a", "#4cc9f0", "#3ecf8e", "#ffffff"];
+const COL = { bg:"#0e1726", panel:"#162236", border:"#2a3a55", head:"#9aa8bc", text:"#eef2f7", muted:"#93a1b6", dim:"#5d6b80", ink:"#0e1726" };
+const FONT = '"AtkinsonHL", "Segoe UI", sans-serif';
+
+const state = {
+  settings: { labels:{steps:"Steps", ai:"AI", sources:"Sources"}, watermark:true, wmText:"The Classroom AI",
+              accent:"#f5b841", tabAudio:false, clearOnStep:false, micId:"" },
+  stepsText: "", steps: [], cur: 0,
+  sources: [], srcIndex: 0,
+  marks: [], spot: null,
+  view: {x:0,y:0,w:W,h:H}, viewTarget: {x:0,y:0,w:W,h:H},
+  tool: "none", penColor: 0,
+  ai: { stream:null, track:null, frame:null, video:null, label:"" },
+  dirtySteps: true, dirtySources: true,
+};
+
+/* ============ helpers ============ */
+function toast(msg, ms = 3200) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, ms); }
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function pad2(n) { return String(n).padStart(2, "0"); }
+function stamp() { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}`; }
+function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+function font(px, bold) { return `${bold ? "700 " : ""}${px}px ${FONT}`; }
+function wrap(c, text, maxW) {
+  const out = [];
+  for (const para of String(text).split(/\n/)) {
+    const words = para.split(/\s+/).filter(Boolean); let line = "";
+    if (!words.length) { out.push(""); continue; }
+    for (let w of words) {
+      while (c.measureText(w).width > maxW && w.length > 1) { // break very long words
+        let i = w.length; while (i > 1 && c.measureText(w.slice(0, i)).width > maxW) i--;
+        if (line) { out.push(line); line = ""; }
+        out.push(w.slice(0, i)); w = w.slice(i);
+      }
+      const test = line ? line + " " + w : w;
+      if (c.measureText(test).width > maxW && line) { out.push(line); line = w; } else line = test;
+    }
+    if (line) out.push(line);
+  }
+  return out;
+}
+function ellipsize(c, text, maxW) { if (c.measureText(text).width <= maxW) return text; let t = text; while (t.length > 1 && c.measureText(t + "…").width > maxW) t = t.slice(0, -1); return t + "…"; }
+function fitContain(sw, sh, box) { const s = Math.min(box.w / sw, box.h / sh); const w = sw * s, h = sh * s; return { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h }; }
+
+/* ============ layout ============ */
+function layout() {
+  const M = 24, G = 16, bottom = state.settings.watermark ? 60 : 24;
+  const ph = H - M - bottom, inner = W - 2 * M - 2 * G;
+  const lw = Math.round(inner * 0.25), mw = inner - 2 * lw;
+  const L = { x: M, y: M, w: lw, h: ph };
+  const Mi = { x: M + lw + G, y: M, w: mw, h: ph };
+  const R = { x: M + lw + G + mw + G, y: M, w: lw, h: ph };
+  const HDR = 48; const body = (p) => ({ x: p.x, y: p.y + HDR, w: p.w, h: p.h - HDR });
+  return { L, M: Mi, R, HDR, Lb: body(L), Mb: body(Mi), Rb: body(R) };
+}
+let LAY = layout();
+
+/* ============ steps ============ */
+function parseSteps(text) {
+  const steps = [];
+  for (let raw of String(text).split(/\r?\n/)) {
+    const line = raw.trim(); if (!line) continue;
+    const tip = line.match(/^(tip|hint)\s*[:\-]\s*(.*)$/i);
+    if (tip) { if (steps.length) steps[steps.length - 1].tips.push(tip[2]); else steps.push({ text: tip[2], tips: [] }); continue; }
+    steps.push({ text: line.replace(/^(step\s*)?\d+\s*[.):\-]\s*/i, ""), tips: [] });
+  }
+  return steps;
+}
+function setSteps(text) {
+  state.stepsText = text; state.steps = parseSteps(text);
+  state.cur = clamp(state.cur, 0, Math.max(0, state.steps.length - 1));
+  state.dirtySteps = true; updateStepUI(); persist();
+}
+function goStep(d) {
+  if (!state.steps.length) return;
+  const n = clamp(state.cur + d, 0, state.steps.length - 1);
+  if (n === state.cur) return;
+  state.cur = n; state.dirtySteps = true;
+  if (state.settings.clearOnStep) { state.marks = []; }
+  updateStepUI(); persist();
+}
+function updateStepUI() {
+  $("stepCount").textContent = state.steps.length ? `Step ${state.cur + 1} of ${state.steps.length}` : "No steps yet";
+}
+const stepsCanvas = document.createElement("canvas");
+function renderSteps() {
+  const b = LAY.Lb; stepsCanvas.width = b.w; stepsCanvas.height = b.h;
+  const c = stepsCanvas.getContext("2d"); c.clearRect(0, 0, b.w, b.h);
+  const P = 22, acc = state.settings.accent;
+  if (!state.steps.length) {
+    c.fillStyle = COL.muted; c.font = font(24); c.textBaseline = "top";
+    wrap(c, "Add your steps in the Steps tab on the right.", b.w - 2 * P).forEach((l, i) => c.fillText(l, P, P + i * 32));
+    return;
+  }
+  c.font = font(20, true); c.fillStyle = COL.muted; c.textBaseline = "top";
+  c.fillText(`STEP ${state.cur + 1} OF ${state.steps.length}`, P, P);
+  // progress bar
+  const pbY = P + 30; c.fillStyle = "#24324a"; c.beginPath(); c.roundRect(P, pbY, b.w - 2 * P, 8, 4); c.fill();
+  c.fillStyle = acc; c.beginPath(); c.roundRect(P, pbY, (b.w - 2 * P) * ((state.cur + 1) / state.steps.length), 8, 4); c.fill();
+  const top0 = pbY + 28, R = 18, TX = P + 2 * R + 14, TW = b.w - TX - P, LH = 34;
+  // measure
+  const items = state.steps.map((s, i) => {
+    c.font = font(26, i === state.cur); const lines = wrap(c, s.text, TW);
+    let tipLines = [];
+    if (i === state.cur && s.tips.length) { c.font = font(22); tipLines = s.tips.map(t => wrap(c, t, b.w - 2 * P - 36)); }
+    const tipH = tipLines.reduce((h, tl) => h + 40 + tl.length * 30, 0);
+    const h = Math.max(2 * R, lines.length * LH) + (tipH ? tipH + 12 : 0) + 22;
+    return { lines, tipLines, h };
+  });
+  let y = 0; items.forEach(it => { it.y = y; y += it.h; });
+  const avail = b.h - top0 - P, total = y;
+  let off = 0; if (total > avail) off = clamp(items[state.cur].y - 90, 0, total - avail);
+  c.save(); c.beginPath(); c.rect(0, top0, b.w, avail + P); c.clip();
+  items.forEach((it, i) => {
+    const yy = top0 + it.y - off; if (yy > b.h || yy + it.h < top0 - 40) return;
+    const isCur = i === state.cur, done = i < state.cur;
+    if (isCur) { c.fillStyle = "rgba(255,255,255,.06)"; c.beginPath(); c.roundRect(P - 10, yy - 10, b.w - 2 * P + 20, it.h - 4, 12); c.fill();
+                 c.fillStyle = acc; c.beginPath(); c.roundRect(P - 10, yy - 10, 5, it.h - 4, 3); c.fill(); }
+    const cx = P + R, cy = yy + R;
+    c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2);
+    if (isCur) { c.fillStyle = acc; c.fill(); }
+    else if (done) { c.fillStyle = "#2c3b55"; c.fill(); }
+    else { c.strokeStyle = COL.dim; c.lineWidth = 2; c.stroke(); }
+    if (done) { c.strokeStyle = COL.muted; c.lineWidth = 3.5; c.lineCap = "round"; c.lineJoin = "round"; c.beginPath(); c.moveTo(cx - 8, cy + 1); c.lineTo(cx - 2, cy + 7); c.lineTo(cx + 9, cy - 6); c.stroke(); }
+    else { c.fillStyle = isCur ? COL.ink : COL.muted; c.font = font(20, true); c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(i + 1), cx, cy + 1); c.textAlign = "left"; }
+    c.textBaseline = "top"; c.font = font(26, isCur); c.fillStyle = isCur ? COL.text : done ? COL.dim : "#c9d3e1";
+    it.lines.forEach((l, k) => c.fillText(l, TX, yy + 2 + k * LH));
+    if (it.tipLines.length) {
+      let ty = yy + Math.max(2 * R, it.lines.length * LH) + 12;
+      it.tipLines.forEach(tl => {
+        const th = 40 + tl.length * 30;
+        c.fillStyle = hexA(acc, .14); c.beginPath(); c.roundRect(P, ty, b.w - 2 * P, th - 8, 10); c.fill();
+        c.fillStyle = acc; c.beginPath(); c.roundRect(P, ty, 5, th - 8, 3); c.fill();
+        c.font = font(16, true); c.fillStyle = acc; c.fillText("TIP", P + 18, ty + 10);
+        c.font = font(22); c.fillStyle = COL.text; tl.forEach((l, k) => c.fillText(l, P + 18, ty + 32 + k * 30));
+        ty += th;
+      });
+    }
+  });
+  c.restore();
+}
+
+/* ============ sources ============ */
+const pdfCache = new Map(); // key -> canvas
+function workerURL() {
+  if (workerURL.u) return workerURL.u;
+  const el = document.getElementById("pdfjs-worker");
+  workerURL.u = URL.createObjectURL(new Blob([el.textContent], { type: "text/javascript" }));
+  return workerURL.u;
+}
+async function openPdf(bytes) {
+  if (!window.pdfjsLib) throw new Error("PDF reader missing");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerURL();
+  return pdfjsLib.getDocument({ data: bytes.slice(0), isEvalSupported: false }).promise;
+}
+function dataURLtoBytes(u) { const b = atob(u.split(",")[1]); const a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
+function bytesToDataURL(bytes, mime) {
+  return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(new Blob([bytes], { type: mime })); });
+}
+let srcSeq = 1;
+async function addSourceFromBytes(name, mime, bytes, extra = {}) {
+  const s = { id: srcSeq++, name, mime, type: mime === "application/pdf" ? "pdf" : "image", dataURL: extra.dataURL || await bytesToDataURL(bytes, mime), page: extra.page || 1, pages: 1 };
+  if (s.type === "pdf") { s.doc = await openPdf(bytes); s.pages = s.doc.numPages; s.page = clamp(s.page, 1, s.pages); }
+  else { s.bitmap = await createImageBitmap(new Blob([bytes], { type: mime })); }
+  state.sources.push(s); return s;
+}
+async function addFiles(files) {
+  let added = 0;
+  for (const f of files) {
+    const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+    if (!isPdf && !/^image\//.test(f.type)) { toast(`Skipped ${f.name}: only pictures and PDFs.`); continue; }
+    try { const bytes = new Uint8Array(await f.arrayBuffer()); await addSourceFromBytes(f.name, isPdf ? "application/pdf" : f.type, bytes); added++; }
+    catch (e) { console.error(e); toast(`Couldn't open ${f.name}.`); }
+  }
+  if (added) { state.srcIndex = state.sources.length - 1; state.dirtySources = true; renderSrcList(); persistSources(); toast(`Added ${added} source${added > 1 ? "s" : ""}.`); }
+}
+function addTextCard(title, body, extra = {}) {
+  state.sources.push({ id: srcSeq++, type: "text", name: title || "Text card", title, body, page: 1, pages: 1, ...extra });
+}
+function curSource() { return state.sources[state.srcIndex] || null; }
+function goSource(d) { if (!state.sources.length) return; state.srcIndex = (state.srcIndex + d + state.sources.length) % state.sources.length; state.dirtySources = true; renderSrcList(); persist(); }
+function goPage(d) { const s = curSource(); if (!s || s.type !== "pdf") return; const n = clamp(s.page + d, 1, s.pages); if (n !== s.page) { s.page = n; state.dirtySources = true; renderSrcList(); persistSources(); } }
+async function pdfPageCanvas(s, box) {
+  const key = `${s.id}:${s.page}:${box.w}x${box.h}`;
+  if (pdfCache.has(key)) return pdfCache.get(key);
+  pdfCache.set(key, null); // pending
+  try {
+    const page = await s.doc.getPage(s.page);
+    const vp1 = page.getViewport({ scale: 1 });
+    const scale = Math.min(box.w / vp1.width, box.h / vp1.height) * 2; // 2x for zoom sharpness
+    const vp = page.getViewport({ scale });
+    const cv = document.createElement("canvas"); cv.width = Math.ceil(vp.width); cv.height = Math.ceil(vp.height);
+    const pc = cv.getContext("2d"); pc.fillStyle = "#fff"; pc.fillRect(0, 0, cv.width, cv.height);
+    await page.render({ canvasContext: pc, viewport: vp }).promise;
+    pdfCache.set(key, cv); state.dirtySources = true;
+    if (pdfCache.size > 24) pdfCache.delete(pdfCache.keys().next().value);
+    return cv;
+  } catch (e) { console.error(e); pdfCache.delete(key); return null; }
+}
+const srcCanvas = document.createElement("canvas");
+function renderSources() {
+  const b = LAY.Rb; srcCanvas.width = b.w; srcCanvas.height = b.h;
+  const c = srcCanvas.getContext("2d"); c.clearRect(0, 0, b.w, b.h);
+  const s = curSource(), P = 16;
+  if (!s) { c.fillStyle = COL.muted; c.font = font(24); c.textBaseline = "top"; wrap(c, "Add pictures, PDFs or text cards in the Sources tab.", b.w - 2 * P).forEach((l, i) => c.fillText(l, P + 6, P + 6 + i * 32)); return; }
+  const foot = 44, box = { x: P, y: P, w: b.w - 2 * P, h: b.h - 2 * P - foot };
+  if (s.type === "image" && s.bitmap) { const r = fitContain(s.bitmap.width, s.bitmap.height, box); c.drawImage(s.bitmap, r.x, r.y, r.w, r.h); }
+  else if (s.type === "pdf") {
+    const key = `${s.id}:${s.page}:${box.w}x${box.h}`; const cv = pdfCache.get(key);
+    if (cv) { const r = fitContain(cv.width, cv.height, box); c.drawImage(cv, r.x, r.y, r.w, r.h); }
+    else { c.fillStyle = COL.muted; c.font = font(22); c.textBaseline = "top"; c.fillText("Loading page…", box.x, box.y); if (!pdfCache.has(key)) pdfPageCanvas(s, box); }
+  } else if (s.type === "text") {
+    c.fillStyle = "#1c2a43"; c.beginPath(); c.roundRect(box.x, box.y, box.w, box.h, 12); c.fill();
+    c.textBaseline = "top"; let y = box.y + 22;
+    if (s.title) { c.font = font(30, true); c.fillStyle = COL.text; wrap(c, s.title, box.w - 44).forEach(l => { c.fillText(l, box.x + 22, y); y += 38; }); y += 10; }
+    c.font = font(24); c.fillStyle = "#d7dee9"; for (const l of wrap(c, s.body || "", box.w - 44)) { if (y > box.y + box.h - 34) { c.fillText("…", box.x + 22, y); break; } c.fillText(l, box.x + 22, y); y += 32; }
+  }
+  // footer
+  c.font = font(18); c.fillStyle = COL.muted; c.textBaseline = "middle";
+  const right = `${state.srcIndex + 1} / ${state.sources.length}` + (s.type === "pdf" ? `  ·  page ${s.page}/${s.pages}` : "");
+  const rw = c.measureText(right).width; c.fillText(ellipsize(c, s.name, b.w - 2 * P - rw - 16), P, b.h - P - foot / 2 + 6);
+  c.fillText(right, b.w - P - rw, b.h - P - foot / 2 + 6);
+}
+function renderSrcList() {
+  const list = $("srcList"); list.innerHTML = "";
+  state.sources.forEach((s, i) => {
+    const row = document.createElement("div"); row.className = "src" + (i === state.srcIndex ? " active" : ""); row.tabIndex = 0;
+    row.setAttribute("role", "button"); row.setAttribute("aria-label", `Show ${s.name}`);
+    const th = document.createElement("div"); th.className = "th";
+    if (s.type === "image") th.style.backgroundImage = `url("${s.dataURL}")`; else th.textContent = s.type === "pdf" ? "PDF" : "TEXT";
+    const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = s.name;
+    const sm = document.createElement("small"); sm.textContent = s.type === "pdf" ? `PDF · ${s.pages} page${s.pages > 1 ? "s" : ""}` : s.type === "text" ? "Text card" : "Picture"; nm.appendChild(sm);
+    const acts = document.createElement("div"); acts.className = "acts";
+    const mk = (t, lbl, fn) => { const bt = document.createElement("button"); bt.textContent = t; bt.title = lbl; bt.setAttribute("aria-label", lbl); bt.onclick = (e) => { e.stopPropagation(); fn(); }; acts.appendChild(bt); };
+    mk("▲", "Move up", () => moveSource(i, -1)); mk("▼", "Move down", () => moveSource(i, 1)); mk("✕", "Remove", () => removeSource(i));
+    row.append(th, nm, acts);
+    const pick = () => { state.srcIndex = i; state.dirtySources = true; renderSrcList(); persist(); };
+    row.onclick = pick; row.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } };
+    list.appendChild(row);
+  });
+  const s = curSource(); $("pdfNav").hidden = !(s && s.type === "pdf");
+  if (s && s.type === "pdf") $("pgLabel").textContent = `Page ${s.page} of ${s.pages}`;
+}
+function moveSource(i, d) { const j = i + d; if (j < 0 || j >= state.sources.length) return; const a = state.sources; [a[i], a[j]] = [a[j], a[i]]; if (state.srcIndex === i) state.srcIndex = j; else if (state.srcIndex === j) state.srcIndex = i; state.dirtySources = true; renderSrcList(); persistSources(); }
+function removeSource(i) { const s = state.sources[i]; if (!confirm(`Remove "${s.name}" from Sources?`)) return; state.sources.splice(i, 1); if (s.doc) s.doc.destroy(); state.srcIndex = clamp(state.srcIndex, 0, Math.max(0, state.sources.length - 1)); state.dirtySources = true; renderSrcList(); persistSources(); }
+
+/* ============ AI capture ============ */
+async function connectAI() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { toast("This browser can't share tabs. Use Chrome or Edge."); return; }
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { displaySurface: "browser", frameRate: { ideal: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: state.settings.tabAudio ? { suppressLocalAudioPlayback: false } : false,
+      preferCurrentTab: false, selfBrowserSurface: "exclude", surfaceSwitching: "include", systemAudio: "exclude"
+    });
+    disconnectAI(true);
+    const track = stream.getVideoTracks()[0];
+    state.ai.stream = stream; state.ai.track = track; state.ai.label = track.label || "AI tab";
+    track.addEventListener("ended", () => { if (state.ai.track === track) { disconnectAI(); toast("The AI tab stopped sharing. Click Connect AI tab to share it again."); } });
+    if ("MediaStreamTrackProcessor" in window) pumpFrames(track);
+    else { const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.srcObject = new MediaStream([track]); await v.play(); state.ai.video = v; }
+    const at = stream.getAudioTracks()[0]; if (at) { connectTabAudio(at); } else if (state.settings.tabAudio) toast("No tab sound was shared. Tick 'Also share tab audio' in Chrome's share box next time.", 5000);
+    setAIStatus();
+  } catch (e) {
+    if (e && e.name === "NotAllowedError") toast("Sharing was cancelled.");
+    else { console.error(e); toast("Couldn't connect the tab: " + (e && e.message || e)); }
+  }
+}
+async function pumpFrames(track) {
+  try {
+    const reader = new MediaStreamTrackProcessor({ track }).readable.getReader();
+    while (state.ai.track === track) {
+      const { value, done } = await reader.read(); if (done) break;
+      if (state.ai.track !== track) { value.close(); break; }
+      const old = state.ai.frame; state.ai.frame = value; if (old) old.close();
+    }
+    try { reader.cancel(); } catch {}
+  } catch (e) { console.error("frame pump", e); }
+}
+function disconnectAI(silent) {
+  const a = state.ai;
+  if (a.stream) a.stream.getTracks().forEach(t => { try { t.stop(); } catch {} });
+  if (a.frame) { try { a.frame.close(); } catch {} }
+  if (a.video) { a.video.srcObject = null; }
+  if (audio.tabNode) { try { audio.tabNode.disconnect(); } catch {} audio.tabNode = null; }
+  state.ai = { stream: null, track: null, frame: null, video: null, label: "" };
+  if (!silent) setAIStatus();
+}
+function setAIStatus() {
+  const el = $("aiStatus"), on = !!state.ai.track;
+  el.classList.toggle("live", on);
+  el.innerHTML = `<span class="dot"></span>${on ? "Sharing: " + escapeHTML(state.ai.label).slice(0, 60) : "AI tab not connected"}`;
+  $("btnConnect").textContent = on ? "Change AI tab" : "Connect AI tab";
+}
+function escapeHTML(s) { return String(s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch])); }
+
+/* ============ audio (mic + tab mix) ============ */
+const audio = { ctx: null, dest: null, micStream: null, micNode: null, tabNode: null, analyser: null };
+function ensureAudioCtx() {
+  if (!audio.ctx) { audio.ctx = new AudioContext(); audio.dest = audio.ctx.createMediaStreamDestination(); audio.analyser = audio.ctx.createAnalyser(); audio.analyser.fftSize = 512; }
+  if (audio.ctx.state === "suspended") audio.ctx.resume();
+  return audio.ctx;
+}
+async function enableMic() {
+  ensureAudioCtx();
+  try {
+    const id = $("micSelect").value;
+    const s = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: id ? { exact: id } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    if (audio.micStream) audio.micStream.getTracks().forEach(t => t.stop());
+    if (audio.micNode) audio.micNode.disconnect();
+    audio.micStream = s; audio.micNode = audio.ctx.createMediaStreamSource(s);
+    audio.micNode.connect(audio.dest); audio.micNode.connect(audio.analyser);
+    state.settings.micId = id; persist();
+    $("micStatus").textContent = "Mic on"; $("btnMic").textContent = "Mic is on";
+    await listMics(); return true;
+  } catch (e) { console.error(e); toast("Couldn't turn on the microphone. Check that Chrome has mic permission."); $("micStatus").textContent = "Mic off"; return false; }
+}
+async function listMics() {
+  try {
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "audioinput");
+    const sel = $("micSelect"), cur = sel.value || state.settings.micId;
+    sel.innerHTML = '<option value="">Default microphone</option>' + devs.filter(d => d.deviceId && d.deviceId !== "default").map(d => `<option value="${escapeHTML(d.deviceId)}">${escapeHTML(d.label || "Microphone")}</option>`).join("");
+    if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+  } catch {}
+}
+function connectTabAudio(track) {
+  ensureAudioCtx();
+  if (audio.tabNode) { try { audio.tabNode.disconnect(); } catch {} }
+  audio.tabNode = audio.ctx.createMediaStreamSource(new MediaStream([track]));
+  audio.tabNode.connect(audio.dest);
+}
+const meterBuf = new Uint8Array(256);
+function updateMeter() {
+  if (!audio.analyser || !audio.micNode) { $("meter").style.width = "0"; return; }
+  audio.analyser.getByteTimeDomainData(meterBuf); let peak = 0;
+  for (const v of meterBuf) peak = Math.max(peak, Math.abs(v - 128));
+  $("meter").style.width = Math.min(100, peak / 128 * 160) + "%";
+}
+
+/* ============ annotations ============ */
+function badgeNext() { return state.marks.filter(m => m.type === "badge").reduce((n, m) => Math.max(n, m.n), 0) + 1; }
+function drawStroke(c, m) {
+  const p = m.pts; if (!p.length) return;
+  c.save(); c.globalAlpha = m.alpha; c.strokeStyle = m.color; c.lineWidth = m.width; c.lineCap = "round"; c.lineJoin = "round";
+  c.beginPath(); c.moveTo(p[0][0], p[0][1]);
+  if (p.length === 1) c.lineTo(p[0][0] + .1, p[0][1]);
+  for (let i = 1; i < p.length - 1; i++) { const mx = (p[i][0] + p[i + 1][0]) / 2, my = (p[i][1] + p[i + 1][1]) / 2; c.quadraticCurveTo(p[i][0], p[i][1], mx, my); }
+  if (p.length > 1) c.lineTo(p[p.length - 1][0], p[p.length - 1][1]);
+  c.stroke(); c.restore();
+}
+function calloutBox(c, m) {
+  c.font = font(26, true); const lines = wrap(c, m.text, 420);
+  const w = Math.max(...lines.map(l => c.measureText(l).width)) + 36, h = lines.length * 34 + 26;
+  const x = clamp(m.bx, 8, W - w - 8), y = clamp(m.by, 8, H - h - 8); return { x, y, w, h, lines };
+}
+function drawCallout(c, m) {
+  const acc = state.settings.accent, b = calloutBox(c, m);
+  if (m.arrow) {
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2, dx = m.tx - cx, dy = m.ty - cy;
+    const t = Math.min(Math.abs((b.w / 2) / (dx || 1e-6)), Math.abs((b.h / 2) / (dy || 1e-6)), 1);
+    const sx = cx + dx * t, sy = cy + dy * t, ang = Math.atan2(m.ty - sy, m.tx - sx);
+    c.save(); c.strokeStyle = acc; c.fillStyle = acc; c.lineWidth = 6; c.lineCap = "round";
+    c.beginPath(); c.moveTo(sx, sy); c.lineTo(m.tx - Math.cos(ang) * 14, m.ty - Math.sin(ang) * 14); c.stroke();
+    c.beginPath(); c.moveTo(m.tx, m.ty); c.lineTo(m.tx - Math.cos(ang - .45) * 26, m.ty - Math.sin(ang - .45) * 26); c.lineTo(m.tx - Math.cos(ang + .45) * 26, m.ty - Math.sin(ang + .45) * 26); c.closePath(); c.fill(); c.restore();
+  }
+  c.save(); c.shadowColor = "rgba(0,0,0,.35)"; c.shadowBlur = 16; c.fillStyle = "#fff"; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.restore();
+  c.strokeStyle = acc; c.lineWidth = 4; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.stroke();
+  c.fillStyle = COL.ink; c.font = font(26, true); c.textBaseline = "top"; b.lines.forEach((l, i) => c.fillText(l, b.x + 18, b.y + 14 + i * 34));
+}
+function drawBadge(c, m) {
+  const acc = state.settings.accent; c.save(); c.shadowColor = "rgba(0,0,0,.4)"; c.shadowBlur = 10;
+  c.fillStyle = acc; c.beginPath(); c.arc(m.x, m.y, 26, 0, Math.PI * 2); c.fill(); c.restore();
+  c.strokeStyle = "#fff"; c.lineWidth = 3; c.beginPath(); c.arc(m.x, m.y, 26, 0, Math.PI * 2); c.stroke();
+  c.fillStyle = COL.ink; c.font = font(28, true); c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(m.n), m.x, m.y + 1); c.textAlign = "left";
+}
+function drawMarks(c, list) { for (const m of list) { if (m.type === "stroke") drawStroke(c, m); else if (m.type === "callout") drawCallout(c, m); else if (m.type === "badge") drawBadge(c, m); } }
+
+/* ============ render ============ */
+let frames = 0, lastT = performance.now();
+function drawPanel(c, p, label, live) {
+  c.fillStyle = COL.panel; c.beginPath(); c.roundRect(p.x, p.y, p.w, p.h, 14); c.fill();
+  c.strokeStyle = COL.border; c.lineWidth = 2; c.beginPath(); c.roundRect(p.x + 1, p.y + 1, p.w - 2, p.h - 2, 14); c.stroke();
+  c.fillStyle = COL.border; c.fillRect(p.x + 2, p.y + LAY.HDR - 1, p.w - 4, 2);
+  c.font = font(19, true); c.fillStyle = COL.head; c.textBaseline = "middle";
+  let x = p.x + 20;
+  if (live) { c.fillStyle = "#3ecf8e"; c.beginPath(); c.arc(x + 5, p.y + LAY.HDR / 2, 6, 0, Math.PI * 2); c.fill(); x += 20; c.fillStyle = COL.head; }
+  c.save(); try { c.letterSpacing = "2px"; } catch {} c.fillText(String(label || "").toUpperCase(), x, p.y + LAY.HDR / 2 + 1); c.restore();
+}
+function render() {
+  const now = performance.now(), dt = Math.min(100, now - lastT); lastT = now; frames++;
+  // animate zoom
+  const v = state.view, t = state.viewTarget, k = reduceMotion ? 1 : 1 - Math.pow(0.0001, dt / 450);
+  v.x += (t.x - v.x) * k; v.y += (t.y - v.y) * k; v.w += (t.w - v.w) * k; v.h += (t.h - v.h) * k;
+  if (Math.abs(t.w - v.w) < .5) Object.assign(v, t);
+  if (state.dirtySteps) { renderSteps(); state.dirtySteps = false; }
+  if (state.dirtySources) { state.dirtySources = false; renderSources(); }
+  const S = state.settings;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, W, H);
+  const sx = W / v.w, sy = H / v.h; ctx.setTransform(sx, 0, 0, sy, -v.x * sx, -v.y * sy);
+  // panels
+  drawPanel(ctx, LAY.L, S.labels.steps); ctx.drawImage(stepsCanvas, LAY.Lb.x, LAY.Lb.y);
+  drawPanel(ctx, LAY.M, S.labels.ai, !!state.ai.track);
+  const mb = LAY.Mb, inset = { x: mb.x + 10, y: mb.y + 10, w: mb.w - 20, h: mb.h - 20 };
+  const src = state.ai.frame || (state.ai.video && state.ai.video.readyState >= 2 ? state.ai.video : null);
+  if (src) {
+    const sw = src.displayWidth || src.videoWidth, sh = src.displayHeight || src.videoHeight;
+    if (sw && sh) { const r = fitContain(sw, sh, inset); ctx.fillStyle = "#000"; ctx.fillRect(r.x, r.y, r.w, r.h); try { ctx.drawImage(src, r.x, r.y, r.w, r.h); } catch {} }
+  } else {
+    ctx.fillStyle = COL.muted; ctx.font = font(30, true); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(state.ai.track ? "Waiting for the AI tab…" : "Connect your AI tab", mb.x + mb.w / 2, mb.y + mb.h / 2 - 20);
+    ctx.font = font(22); ctx.fillText(state.ai.track ? "" : "Use the Connect AI tab button at the top.", mb.x + mb.w / 2, mb.y + mb.h / 2 + 22); ctx.textAlign = "left";
+  }
+  drawPanel(ctx, LAY.R, S.labels.sources); ctx.drawImage(srcCanvas, LAY.Rb.x, LAY.Rb.y);
+  // marks
+  drawMarks(ctx, state.marks); if (drag && drag.mark) drawMarks(ctx, [drag.mark]);
+  // spotlight
+  const sp = drag && drag.kind === "spot" ? drag.rect : state.spot;
+  if (sp && sp.w > 4 && sp.h > 4) {
+    ctx.save(); ctx.fillStyle = "rgba(4,8,15,.68)"; ctx.beginPath(); ctx.rect(-W, -H, 3 * W, 3 * H); ctx.roundRect(sp.x, sp.y, sp.w, sp.h, 16); ctx.fill("evenodd");
+    ctx.strokeStyle = S.accent; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(sp.x, sp.y, sp.w, sp.h, 16); ctx.stroke(); ctx.restore();
+  }
+  // watermark (fixed, not zoomed)
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (S.watermark && S.wmText) {
+    ctx.font = font(22, true); ctx.textBaseline = "middle"; const tw = ctx.measureText(S.wmText).width;
+    const x = W - 24 - tw - 28, y = H - 44;
+    ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.beginPath(); ctx.roundRect(x, y - 17, tw + 28, 34, 17); ctx.fill();
+    ctx.fillStyle = S.accent; ctx.beginPath(); ctx.arc(x + 14, y, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#c9d3e1"; ctx.fillText(S.wmText, x + 26, y + 1);
+  }
+  renderOverlay();
+  if (frames % 4 === 0) { updateMeter(); updateTimer(); }
+}
+function renderOverlay() {
+  octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, W, H);
+  if (drag && drag.kind === "zoom") {
+    const v = state.view, sx = W / v.w, sy = H / v.h, r = drag.rect;
+    octx.setTransform(sx, 0, 0, sy, -v.x * sx, -v.y * sy);
+    octx.setLineDash([14 / sx, 10 / sx]); octx.strokeStyle = "#fff"; octx.lineWidth = 3 / sx; octx.strokeRect(r.x, r.y, r.w, r.h);
+    octx.fillStyle = "rgba(255,255,255,.08)"; octx.fillRect(r.x, r.y, r.w, r.h);
+  }
+}
+// Ticker in a Worker: keeps drawing (and recording) when this tab is in the background.
+let ticker;
+function startTicker() {
+  try {
+    const src = "let id=null;onmessage=e=>{clearInterval(id);id=setInterval(()=>postMessage(0),e.data)}";
+    ticker = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+    ticker.onmessage = () => render(); ticker.postMessage(1000 / 30);
+  } catch (e) { console.warn("worker ticker unavailable, using timers", e); setInterval(render, 1000 / 30); }
+}
+
+/* ============ pointer input on stage ============ */
+let drag = null;
+function toStage(e) {
+  const r = stage.getBoundingClientRect(), v = state.view;
+  return [v.x + (e.clientX - r.left) / r.width * v.w, v.y + (e.clientY - r.top) / r.height * v.h];
+}
+function normRect(a, b) { return { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(a[0] - b[0]), h: Math.abs(a[1] - b[1]) }; }
+stage.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0 || state.tool === "none") return;
+  if (!$("calloutInput").hidden) { commitCallout(); return; }
+  stage.setPointerCapture(e.pointerId); const p = toStage(e);
+  const T = state.tool;
+  if (T === "pen" || T === "highlight") {
+    const hl = T === "highlight";
+    drag = { kind: "stroke", mark: { type: "stroke", color: hl ? "#ffe600" : PEN_COLORS[state.penColor], width: hl ? 28 : 7, alpha: hl ? .38 : 1, pts: [p] } };
+  } else if (T === "spot" || T === "zoom") { drag = { kind: T, a: p, rect: normRect(p, p) }; }
+  else if (T === "callout") { drag = { kind: "callout", a: p, b: p }; }
+  else if (T === "badge") { state.marks.push({ type: "badge", x: p[0], y: p[1], n: badgeNext() }); }
+});
+stage.addEventListener("pointermove", (e) => {
+  if (!drag) return; const p = toStage(e);
+  if (drag.kind === "stroke") { const pts = drag.mark.pts, l = pts[pts.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) > 2) pts.push(p); }
+  else if (drag.kind === "spot" || drag.kind === "zoom") drag.rect = normRect(drag.a, p);
+  else if (drag.kind === "callout") { drag.b = p; drag.mark = Math.hypot(p[0] - drag.a[0], p[1] - drag.a[1]) > 12 ? { type: "callout", tx: drag.a[0], ty: drag.a[1], bx: p[0], by: p[1], text: "…", arrow: true } : null; }
+});
+stage.addEventListener("pointerup", () => {
+  if (!drag) return; const d = drag; drag = null;
+  if (d.kind === "stroke") state.marks.push(d.mark);
+  else if (d.kind === "spot") { state.spot = d.rect.w > 20 && d.rect.h > 20 ? d.rect : null; }
+  else if (d.kind === "zoom") { if (d.rect.w > 30 && d.rect.h > 30) zoomTo(d.rect); }
+  else if (d.kind === "callout") {
+    const arrow = Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1]) > 12;
+    openCalloutInput(arrow ? { tx: d.a[0], ty: d.a[1], bx: d.b[0], by: d.b[1], arrow: true } : { tx: d.a[0], ty: d.a[1], bx: d.a[0], by: d.a[1], arrow: false });
+  }
+});
+stage.addEventListener("pointercancel", () => { drag = null; });
+function zoomTo(r) {
+  let w = Math.max(r.w, r.h * 16 / 9, 420), h = w * 9 / 16; if (w > W) { w = W; h = H; }
+  const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+  state.viewTarget = { x: clamp(cx - w / 2, 0, W - w), y: clamp(cy - h / 2, 0, H - h), w, h };
+}
+function resetView() { state.viewTarget = { x: 0, y: 0, w: W, h: H }; state.spot = null; }
+let pendingCallout = null;
+function openCalloutInput(m) {
+  pendingCallout = m; const inp = $("calloutInput"), r = stage.getBoundingClientRect(), v = state.view, box = $("stagebox").getBoundingClientRect();
+  const px = (m.bx - v.x) / v.w * r.width + (r.left - box.left), py = (m.by - v.y) / v.h * r.height + (r.top - box.top);
+  inp.style.left = clamp(px, 4, box.width - 260) + "px"; inp.style.top = clamp(py, 4, box.height - 44) + "px";
+  inp.value = ""; inp.hidden = false; inp.focus();
+}
+function commitCallout() {
+  const inp = $("calloutInput"), text = inp.value.trim(); inp.hidden = true;
+  if (pendingCallout && text) state.marks.push({ type: "callout", ...pendingCallout, text });
+  pendingCallout = null; $("stage").focus?.();
+}
+$("calloutInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commitCallout(); } else if (e.key === "Escape") { e.preventDefault(); pendingCallout = null; $("calloutInput").hidden = true; } e.stopPropagation(); });
+$("calloutInput").addEventListener("blur", () => { if (!$("calloutInput").hidden) commitCallout(); });
+
+function setTool(t) {
+  state.tool = t;
+  document.querySelectorAll(".tool[data-tool]").forEach(b => b.classList.toggle("active", b.dataset.tool === t));
+  $("stagebox").className = "stagebox tool-" + t;
+}
+function renderSwatches() {
+  const wrapEl = $("swatches"); wrapEl.innerHTML = "";
+  PEN_COLORS.forEach((c, i) => { const b = document.createElement("button"); b.className = "sw" + (i === state.penColor ? " active" : ""); b.style.background = c; b.title = `Pen color ${i + 1}`; b.setAttribute("aria-label", `Pen color ${i + 1}`); b.onclick = () => { state.penColor = i; renderSwatches(); if (state.tool !== "pen") setTool("pen"); }; wrapEl.appendChild(b); });
+}
+
+/* ============ recording ============ */
+const rec = { mr: null, chunks: [], writable: null, writeChain: Promise.resolve(), fileName: "", mime: "", startT: 0, pausedMs: 0, pauseT: 0, saved: true };
+function pickMime() {
+  const opts = ["video/mp4;codecs=avc1.640028,mp4a.40.2", "video/mp4;codecs=avc1,mp4a.40.2", "video/mp4;codecs=avc1,opus", "video/mp4",
+                "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
+  return opts.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || "";
+}
+async function startRecording() {
+  if (rec.mr) return;
+  const mime = pickMime(); if (!mime) { toast("This browser can't record video. Use Chrome or Edge."); return; }
+  const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
+  rec.fileName = `classroom-ai-studio-${stamp()}.${ext}`; rec.mime = mime;
+  ensureAudioCtx();
+  rec.writable = null;
+  if (window.showSaveFilePicker) {
+    try {
+      const h = await showSaveFilePicker({ suggestedName: rec.fileName, types: [{ description: "Video", accept: { [ext === "mp4" ? "video/mp4" : "video/webm"]: ["." + ext] } }] });
+      rec.writable = await h.createWritable(); rec.fileName = h.name;
+    } catch (e) { if (e && e.name === "AbortError") { toast("Recording cancelled."); return; } console.warn(e); }
+  }
+  if (!audio.micNode) { const ok = await enableMic(); if (!ok && !confirm("Record without a microphone?")) { if (rec.writable) { try { await rec.writable.abort(); } catch {} } return; } }
+  if (!state.ai.track && !confirm("The AI tab isn't connected. Record anyway?")) { if (rec.writable) { try { await rec.writable.abort(); } catch {} } return; }
+  await countdown(3);
+  const vs = stage.captureStream(30);
+  const tracks = [...vs.getVideoTracks(), ...audio.dest.stream.getAudioTracks()];
+  const mr = new MediaRecorder(new MediaStream(tracks), { mimeType: mime, videoBitsPerSecond: 6_000_000, audioBitsPerSecond: 160_000 });
+  rec.chunks = []; rec.writeChain = Promise.resolve(); rec.saved = false;
+  mr.ondataavailable = (e) => {
+    if (!e.data || !e.data.size) return;
+    if (rec.writable) { const w = rec.writable; rec.writeChain = rec.writeChain.then(() => w.write(e.data)).catch(err => { console.error(err); toast("Saving to the file failed; keeping the video in memory instead."); rec.writable = null; rec.chunks.push(e.data); }); }
+    else rec.chunks.push(e.data);
+  };
+  mr.onstop = finishRecording;
+  mr.start(1000); rec.mr = mr; rec.startT = performance.now(); rec.pausedMs = 0; rec.pauseT = 0;
+  $("btnRecord").textContent = "■ Stop"; $("btnRecord").classList.add("on"); $("btnPause").disabled = false; $("timer").classList.add("on");
+  $("recInfo").textContent = `Recording as ${mime.split(";")[0]}.`;
+}
+function countdown(n) {
+  return new Promise(res => { const el = $("countdown"); el.hidden = false; let i = n; el.textContent = i;
+    const t = setInterval(() => { i--; if (i <= 0) { clearInterval(t); el.hidden = true; res(); } else el.textContent = i; }, 1000); });
+}
+function stopRecording() { if (rec.mr && rec.mr.state !== "inactive") rec.mr.stop(); }
+function togglePause() {
+  if (!rec.mr) return;
+  if (rec.mr.state === "recording") { rec.mr.pause(); rec.pauseT = performance.now(); $("btnPause").textContent = "Resume"; toast("Paused. Press F8 or Resume to continue."); }
+  else if (rec.mr.state === "paused") { rec.mr.resume(); rec.pausedMs += performance.now() - rec.pauseT; rec.pauseT = 0; $("btnPause").textContent = "Pause"; }
+}
+async function finishRecording() {
+  const mime = rec.mime; rec.mr = null;
+  $("btnRecord").textContent = "● Record"; $("btnRecord").classList.remove("on"); $("btnPause").disabled = true; $("btnPause").textContent = "Pause"; $("timer").classList.remove("on");
+  await rec.writeChain;
+  if (rec.writable) { try { await rec.writable.close(); rec.saved = true; toast(`Saved ${rec.fileName}`, 5000); } catch (e) { console.error(e); toast("Couldn't finish the file."); } rec.writable = null; }
+  if (rec.chunks.length) {
+    const blob = new Blob(rec.chunks, { type: mime.split(";")[0] }); rec.chunks = [];
+    window.__lastRecording = blob;
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = rec.fileName; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000); rec.saved = true; toast(`Downloaded ${rec.fileName}`, 5000);
+  }
+}
+function updateTimer() {
+  let ms = 0; if (rec.mr) ms = (rec.pauseT || performance.now()) - rec.startT - rec.pausedMs;
+  const s = Math.floor(ms / 1000); $("timer").textContent = `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`;
+}
+
+/* ============ persistence ============ */
+function persist() {
+  lsSet("cais.settings", state.settings); lsSet("cais.steps", { text: state.stepsText, cur: state.cur }); lsSet("cais.srcIndex", state.srcIndex);
+}
+const IDB = { db: null,
+  open() { return new Promise((res) => { try { const r = indexedDB.open("classroom-ai-studio", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => { IDB.db = r.result; res(true); }; r.onerror = () => res(false); } catch { res(false); } }); },
+  put(k, v) { return new Promise((res) => { if (!IDB.db) return res(false); try { const tx = IDB.db.transaction("kv", "readwrite"); tx.objectStore("kv").put(v, k); tx.oncomplete = () => res(true); tx.onerror = () => res(false); } catch { res(false); } }); },
+  get(k) { return new Promise((res) => { if (!IDB.db) return res(null); try { const r = IDB.db.transaction("kv").objectStore("kv").get(k); r.onsuccess = () => res(r.result || null); r.onerror = () => res(null); } catch { res(null); } }); }
+};
+function serializeSources() {
+  return state.sources.map(s => s.type === "text" ? { type: "text", name: s.name, title: s.title, body: s.body } : { type: s.type, name: s.name, mime: s.mime, page: s.page, dataURL: s.dataURL });
+}
+let persistT; function persistSources() { persist(); clearTimeout(persistT); persistT = setTimeout(() => IDB.put("sources", serializeSources()), 400); }
+async function loadSources(list) {
+  for (const s of state.sources) if (s.doc) try { s.doc.destroy(); } catch {}
+  state.sources = []; pdfCache.clear();
+  for (const it of list || []) {
+    try {
+      if (it.type === "text") addTextCard(it.title, it.body, { name: it.name });
+      else if (it.dataURL) await addSourceFromBytes(it.name, it.mime, dataURLtoBytes(it.dataURL), { dataURL: it.dataURL, page: it.page });
+    } catch (e) { console.error(e); toast(`Couldn't restore ${it.name || "a source"}.`); }
+  }
+  state.dirtySources = true; renderSrcList();
+}
+function projectObject() {
+  return { app: "classroom-ai-studio", version: VERSION, saved: new Date().toISOString(), settings: { ...state.settings, micId: "" }, steps: state.stepsText, sources: serializeSources() };
+}
+async function saveProject() {
+  const json = JSON.stringify(projectObject()), name = `studio-project-${stamp()}.json`;
+  if (window.showSaveFilePicker) {
+    try { const h = await showSaveFilePicker({ suggestedName: name, types: [{ description: "Studio project", accept: { "application/json": [".json"] } }] });
+          const w = await h.createWritable(); await w.write(json); await w.close(); toast(`Saved ${h.name}`); return; }
+    catch (e) { if (e && e.name === "AbortError") return; console.warn(e); }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([json], { type: "application/json" })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); toast(`Downloaded ${name}`);
+}
+async function openProject(file) {
+  try {
+    const p = JSON.parse(await file.text());
+    if (!p || p.app !== "classroom-ai-studio") { toast("That file isn't a Classroom AI Studio project."); return; }
+    Object.assign(state.settings, p.settings || {}); state.settings.labels = { ...{ steps: "Steps", ai: "AI", sources: "Sources" }, ...(p.settings && p.settings.labels) };
+    state.cur = 0; $("stepsText").value = p.steps || ""; setSteps(p.steps || "");
+    state.srcIndex = 0; await loadSources(p.sources); persistSources(); applySettingsUI(); toast(`Opened ${file.name}`);
+  } catch (e) { console.error(e); toast("Couldn't open that project file."); }
+}
+function newProject() {
+  if (!confirm("Start a new project? Your steps and sources will be cleared (save first if you want to keep them).")) return;
+  $("stepsText").value = ""; state.cur = 0; setSteps(""); loadSources([]); persistSources(); state.marks = []; resetView();
+}
+
+/* ============ settings UI ============ */
+function applySettingsUI() {
+  const S = state.settings;
+  $("lblSteps").value = S.labels.steps; $("lblAi").value = S.labels.ai; $("lblSources").value = S.labels.sources;
+  $("optWatermark").checked = S.watermark; $("wmText").value = S.wmText; $("accent").value = S.accent;
+  $("optTabAudio").checked = S.tabAudio; $("optClearOnStep").checked = S.clearOnStep;
+  document.documentElement.style.setProperty("--accent", S.accent);
+  LAY = layout(); pdfCache.clear(); state.dirtySteps = state.dirtySources = true;
+}
+function bindSettings() {
+  const S = state.settings, upd = () => { applySettingsUI(); persist(); };
+  $("lblSteps").oninput = (e) => { S.labels.steps = e.target.value; upd(); };
+  $("lblAi").oninput = (e) => { S.labels.ai = e.target.value; upd(); };
+  $("lblSources").oninput = (e) => { S.labels.sources = e.target.value; upd(); };
+  $("optWatermark").onchange = (e) => { S.watermark = e.target.checked; upd(); };
+  $("wmText").oninput = (e) => { S.wmText = e.target.value; upd(); };
+  $("accent").oninput = (e) => { S.accent = e.target.value; upd(); };
+  $("optTabAudio").onchange = (e) => { S.tabAudio = e.target.checked; upd(); if (state.ai.track) toast("Reconnect the AI tab to apply this."); };
+  $("optClearOnStep").onchange = (e) => { S.clearOnStep = e.target.checked; upd(); };
+  $("micSelect").onchange = () => { if (audio.micNode) enableMic(); };
+}
+
+/* ============ keyboard ============ */
+function isTyping(e) { const t = e.target; return t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable); }
+document.addEventListener("keydown", (e) => {
+  if (e.key === "F9") { e.preventDefault(); rec.mr ? stopRecording() : startRecording(); return; }
+  if (e.key === "F8") { e.preventDefault(); togglePause(); return; }
+  if (isTyping(e)) return;
+  if (!$("helpModal").hidden || !$("textModal").hidden) { if (e.key === "Escape") { $("helpModal").hidden = true; $("textModal").hidden = true; } return; }
+  const k = e.key;
+  if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "z") { e.preventDefault(); state.marks.pop(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const map = { v: "none", p: "pen", h: "highlight", s: "spot", z: "zoom", t: "callout", b: "badge" };
+  if (map[k.toLowerCase()]) { setTool(map[k.toLowerCase()]); return; }
+  if (k === "ArrowRight") { e.preventDefault(); goStep(1); }
+  else if (k === "ArrowLeft") { e.preventDefault(); goStep(-1); }
+  else if (k === "]") goSource(1);
+  else if (k === "[") goSource(-1);
+  else if (k === "PageDown") { e.preventDefault(); goPage(1); }
+  else if (k === "PageUp") { e.preventDefault(); goPage(-1); }
+  else if (k === "c" || k === "C") { state.marks = []; }
+  else if (k === "Escape") { resetView(); setTool("none"); }
+  else if (k === "?") { $("helpModal").hidden = false; $("helpClose").focus(); }
+  else if (/^[1-4]$/.test(k)) { state.penColor = +k - 1; renderSwatches(); if (state.tool !== "pen") setTool("pen"); }
+});
+
+/* ============ wiring ============ */
+function bindUI() {
+  $("btnConnect").onclick = connectAI;
+  $("btnRecord").onclick = () => rec.mr ? stopRecording() : startRecording();
+  $("btnPause").onclick = togglePause;
+  $("btnHelp").onclick = () => { $("helpModal").hidden = false; $("helpClose").focus(); };
+  $("helpClose").onclick = () => $("helpModal").hidden = true;
+  $("privacyX").onclick = () => { $("privacy").hidden = true; lsSet("cais.privacyDismissed", true); };
+  document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+    document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", String(x === b)));
+    document.querySelectorAll(".pane").forEach(p => p.hidden = p.dataset.pane !== b.dataset.tab);
+    if (b.dataset.tab === "settings") listMics();
+  });
+  document.querySelectorAll(".tool[data-tool]").forEach(b => b.onclick = () => setTool(b.dataset.tool));
+  $("btnUndo").onclick = () => state.marks.pop();
+  $("btnClear").onclick = () => { state.marks = []; };
+  $("btnReset").onclick = resetView;
+  let stT; $("stepsText").addEventListener("input", (e) => { clearTimeout(stT); stT = setTimeout(() => setSteps(e.target.value), 250); });
+  $("stepPrev").onclick = () => goStep(-1); $("stepNext").onclick = () => goStep(1);
+  $("stepRestart").onclick = () => { state.cur = 0; state.dirtySteps = true; updateStepUI(); persist(); };
+  $("btnAddFiles").onclick = () => $("fileInput").click();
+  $("fileInput").onchange = (e) => { addFiles([...e.target.files]); e.target.value = ""; };
+  $("btnAddText").onclick = () => { $("tcTitle").value = ""; $("tcBody").value = ""; $("textModal").hidden = false; $("tcTitle").focus(); };
+  $("tcCancel").onclick = () => $("textModal").hidden = true;
+  $("tcSave").onclick = () => { const t = $("tcTitle").value.trim(), b = $("tcBody").value.trim(); if (!t && !b) { toast("Type a title or some text first."); return; }
+    addTextCard(t, b); state.srcIndex = state.sources.length - 1; state.dirtySources = true; renderSrcList(); persistSources(); $("textModal").hidden = true; };
+  $("pgPrev").onclick = () => goPage(-1); $("pgNext").onclick = () => goPage(1);
+  $("btnMic").onclick = enableMic;
+  $("btnSaveProj").onclick = saveProject; $("btnOpenProj").onclick = () => $("projInput").click(); $("btnNewProj").onclick = newProject;
+  $("projInput").onchange = (e) => { const f = e.target.files[0]; if (f) openProject(f); e.target.value = ""; };
+  // drag & drop anywhere
+  const drop = $("drop");
+  window.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+  window.addEventListener("dragleave", (e) => { if (e.target === document.documentElement || e.clientX <= 0) drop.classList.remove("over"); });
+  window.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); const fs = [...(e.dataTransfer && e.dataTransfer.files || [])];
+    if (fs.length === 1 && /\.json$/i.test(fs[0].name)) openProject(fs[0]); else if (fs.length) addFiles(fs); });
+  window.addEventListener("beforeunload", (e) => { if (rec.mr) { e.preventDefault(); e.returnValue = ""; } });
+}
+
+async function init() {
+  Object.assign(state.settings, lsGet("cais.settings", {}));
+  state.settings.labels = { steps: "Steps", ai: "AI", sources: "Sources", ...(state.settings.labels || {}) };
+  const st = lsGet("cais.steps", { text: "", cur: 0 }); $("stepsText").value = st.text || ""; state.cur = st.cur || 0; setSteps(st.text || "");
+  if (lsGet("cais.privacyDismissed", false)) $("privacy").hidden = true;
+  applySettingsUI(); bindSettings(); bindUI(); renderSwatches(); setTool("none"); setAIStatus();
+  try { await document.fonts.load(font(26)); await document.fonts.load(font(26, true)); } catch {}
+  state.dirtySteps = state.dirtySources = true;
+  startTicker();
+  if (await IDB.open()) { const saved = await IDB.get("sources"); if (saved && saved.length) { await loadSources(saved); state.srcIndex = clamp(lsGet("cais.srcIndex", 0), 0, state.sources.length - 1); renderSrcList(); toast("Restored your last setup."); } }
+  if (!window.pdfjsLib) console.warn("PDF reader not bundled");
+  window.__studio = { state, render, rec, audio, version: VERSION, frames: () => frames };
+}
+init();
+</script>
+</body>
+</html>
