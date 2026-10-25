@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Classroom AI Studio v1.0</title>
+<title>Classroom AI Studio v1.1</title>
 <style>
 /*FONT_CSS*/
 [hidden]{display:none!important}
@@ -33,12 +33,17 @@ button{cursor:pointer}
 .status{color:var(--muted);font-size:13px;white-space:nowrap}
 .status .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#5b6b82;margin-right:6px;vertical-align:middle}
 .status.live .dot{background:var(--ok)}
+.chip{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.chip.ok{border-color:rgba(62,207,142,.6);color:#8fe6bd}
+.chip.warn{border-color:rgba(245,184,65,.6);color:#f5cf86}
+.stagebox.tool-none.panning #stage{cursor:grabbing}
+.stagebox.tool-none.zoomed #stage{cursor:grab}
 .timer{font-variant-numeric:tabular-nums;font-weight:700;min-width:64px;text-align:right}
 .timer.on{color:#ff7b7b}
 /* main */
-.main{display:grid;grid-template-columns:64px 1fr 340px;min-height:0}
+.main{display:grid;grid-template-columns:80px 1fr 340px;min-height:0}
 .rail{display:flex;flex-direction:column;gap:6px;padding:10px 8px;border-right:1px solid var(--line);background:var(--panel);overflow-y:auto}
-.tool{width:48px;height:48px;border-radius:10px;border:1px solid transparent;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;gap:2px;color:var(--muted)}
+.tool{width:64px;height:52px;border-radius:10px;border:1px solid transparent;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;gap:2px;color:var(--muted)}
 .tool svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tool:hover{background:var(--panel2);color:var(--text)}
 .tool.active{background:var(--panel2);border-color:var(--accent);color:var(--accent)}
@@ -103,9 +108,10 @@ legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand">Classroom AI Studio<small>v1.0</small></div>
+    <div class="brand">Classroom AI Studio<small>v1.1</small></div>
     <button class="btn primary" id="btnConnect" title="Share the browser tab with your AI tool">Connect AI tab</button>
     <span class="status" id="aiStatus"><span class="dot"></span>AI tab not connected</span>
+    <span class="chip" id="cursorChip" hidden></span>
     <div class="spacer"></div>
     <span class="status" id="micStatus">Mic off</span>
     <span class="timer" id="timer">00:00</span>
@@ -118,7 +124,7 @@ legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
     <nav class="rail" aria-label="Drawing tools">
       <button class="tool active" data-tool="none" title="No tool (V or Esc)"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-2 6z"/></svg>Off</button>
       <button class="tool" data-tool="pen" title="Pen (P)"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg>Pen</button>
-      <button class="tool" data-tool="highlight" title="Highlighter (H)"><svg viewBox="0 0 24 24"><path d="M9 15l-4 4h5l2-2"/><path d="M8 12l7-7 4 4-7 7-4 0z"/></svg>Mark</button>
+      <button class="tool" data-tool="highlight" title="Highlighter (H)"><svg viewBox="0 0 24 24"><path d="M9 15l-4 4h5l2-2"/><path d="M8 12l7-7 4 4-7 7-4 0z"/></svg>Highlight</button>
       <button class="tool" data-tool="spot" title="Spotlight (S): drag a box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Spot</button>
       <button class="tool" data-tool="zoom" title="Zoom (Z): drag a box. Esc zooms out"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6M10 7v6M7 10h6"/></svg>Zoom</button>
       <button class="tool" data-tool="callout" title="Callout (T): click, or drag from the target to where the box goes"><svg viewBox="0 0 24 24"><path d="M4 5h16v10H10l-4 4v-4H4z"/></svg>Note</button>
@@ -139,7 +145,7 @@ legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
           <input class="callout-input" id="calloutInput" type="text" placeholder="Type your note, press Enter" hidden>
         </div>
       </div>
-      <div class="hint"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> steps &nbsp; <kbd>[</kbd> <kbd>]</kbd> sources &nbsp; <kbd>PgUp</kbd> <kbd>PgDn</kbd> PDF pages &nbsp; <kbd>Esc</kbd> zoom out &nbsp; <kbd>F9</kbd> record &nbsp; <kbd>?</kbd> all keys. Only the stage is recorded.</div>
+      <div class="hint"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> steps &nbsp; <kbd>[</kbd> <kbd>]</kbd> sources &nbsp; <kbd>PgUp</kbd> <kbd>PgDn</kbd> PDF pages &nbsp; Mouse wheel zoom &nbsp; <kbd>Esc</kbd> zoom out &nbsp; <kbd>L</kbd> pointer &nbsp; <kbd>F9</kbd> record &nbsp; <kbd>?</kbd> all keys. Only the stage is recorded.</div>
     </section>
 
     <aside class="side">
@@ -189,6 +195,7 @@ legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
           <label class="f">Channel name<input type="text" id="wmText" maxlength="40"></label>
           <label class="f">Accent color<input type="color" id="accent"></label>
           <label class="check"><input type="checkbox" id="optClearOnStep"> Clear marks when I change steps</label>
+          <label class="check"><input type="checkbox" id="optPointer"> Show my pointer on the stage (L)</label>
         </fieldset>
         <fieldset><legend>Project</legend>
           <span class="muted">Saves your steps, sources and labels in one file on your computer.</span>
@@ -215,6 +222,8 @@ legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
       <kbd>H</kbd><span>Highlighter</span>
       <kbd>S</kbd><span>Spotlight: drag a box</span>
       <kbd>Z</kbd><span>Zoom: drag a box</span>
+      <kbd>Mouse wheel</kbd><span>Zoom in or out around the pointer; when zoomed, drag with no tool to move around</span>
+      <kbd>L</kbd><span>Show or hide your pointer highlight on the stage</span>
       <kbd>T</kbd><span>Callout: click, or drag from the target</span>
       <kbd>B</kbd><span>Step badge</span>
       <kbd>1-4</kbd><span>Pen color</span>
@@ -244,7 +253,7 @@ legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
 <script>
 "use strict";
 /* ============ constants & state ============ */
-const VERSION = "1.0";
+const VERSION = "1.1";
 const W = 1920, H = 1080;
 const $ = (id) => document.getElementById(id);
 const stage = $("stage"), ctx = stage.getContext("2d");
@@ -256,7 +265,7 @@ const FONT = '"AtkinsonHL", "Segoe UI", sans-serif';
 
 const state = {
   settings: { labels:{steps:"Steps", ai:"AI", sources:"Sources"}, watermark:true, wmText:"The Classroom AI",
-              accent:"#f5b841", tabAudio:false, clearOnStep:false, micId:"" },
+              accent:"#f5b841", tabAudio:false, clearOnStep:false, micId:"", pointer:true },
   stepsText: "", steps: [], cur: 0,
   sources: [], srcIndex: 0,
   marks: [], spot: null,
@@ -502,14 +511,27 @@ function removeSource(i) { const s = state.sources[i]; if (!confirm(`Remove "${s
 async function connectAI() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { toast("This browser can't share tabs. Use Chrome or Edge."); return; }
   try {
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { displaySurface: "browser", frameRate: { ideal: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    const opts = {
+      video: { displaySurface: "browser", cursor: "always", frameRate: { ideal: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
       audio: state.settings.tabAudio ? { suppressLocalAudioPlayback: false } : false,
       preferCurrentTab: false, selfBrowserSurface: "exclude", surfaceSwitching: "include", systemAudio: "exclude"
-    });
+    };
+    // Future-proofing: if Chrome reports the mouse position over the shared surface, follow it.
+    let controller = null;
+    if (window.CaptureController && "oncapturedmousechange" in CaptureController.prototype) {
+      try { controller = new CaptureController(); opts.controller = controller; } catch { controller = null; }
+    }
+    const stream = await navigator.mediaDevices.getDisplayMedia(opts);
     disconnectAI(true);
     const track = stream.getVideoTracks()[0];
     state.ai.stream = stream; state.ai.track = track; state.ai.label = track.label || "AI tab";
+    if (controller) {
+      controller.oncapturedmousechange = (ev) => {
+        if (state.ai.track !== track) return;
+        state.ai.mouse = ev.surfaceX >= 0 && ev.surfaceY >= 0 ? { x: ev.surfaceX, y: ev.surfaceY } : null;
+      };
+    }
+    updateCursorChip(track);
     track.addEventListener("ended", () => { if (state.ai.track === track) { disconnectAI(); toast("The AI tab stopped sharing. Click Connect AI tab to share it again."); } });
     if ("MediaStreamTrackProcessor" in window) pumpFrames(track);
     else { const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.srcObject = new MediaStream([track]); await v.play(); state.ai.video = v; }
@@ -537,8 +559,20 @@ function disconnectAI(silent) {
   if (a.frame) { try { a.frame.close(); } catch {} }
   if (a.video) { a.video.srcObject = null; }
   if (audio.tabNode) { try { audio.tabNode.disconnect(); } catch {} audio.tabNode = null; }
-  state.ai = { stream: null, track: null, frame: null, video: null, label: "" };
+  state.ai = { stream: null, track: null, frame: null, video: null, label: "", mouse: null };
+  $("cursorChip").hidden = true;
   if (!silent) setAIStatus();
+}
+function updateCursorChip(track) {
+  const st = (track.getSettings && track.getSettings()) || {}, chip = $("cursorChip");
+  let shown;
+  if (st.cursor === "always" || st.cursor === "motion") shown = true;
+  else if (st.cursor === "never") shown = false;
+  else shown = st.displaySurface === "window" || st.displaySurface === "monitor"; // tabs usually leave the cursor out
+  chip.hidden = false; chip.className = "chip " + (shown ? "ok" : "warn");
+  chip.textContent = shown ? "Cursor: shown" : "Cursor: not shown";
+  chip.title = shown ? "Your real mouse pointer appears in the AI panel." : "Chrome Tab sharing usually hides your mouse pointer. To show it, click Change AI tab and pick Window instead.";
+  if (!shown) toast("Your mouse pointer won't show in the AI panel. To show it, click Change AI tab and share a Window instead.", 6500);
 }
 function setAIStatus() {
   const el = $("aiStatus"), on = !!state.ai.track;
@@ -658,7 +692,15 @@ function render() {
   const src = state.ai.frame || (state.ai.video && state.ai.video.readyState >= 2 ? state.ai.video : null);
   if (src) {
     const sw = src.displayWidth || src.videoWidth, sh = src.displayHeight || src.videoHeight;
-    if (sw && sh) { const r = fitContain(sw, sh, inset); ctx.fillStyle = "#000"; ctx.fillRect(r.x, r.y, r.w, r.h); try { ctx.drawImage(src, r.x, r.y, r.w, r.h); } catch {} }
+    if (sw && sh) {
+      // Fit width: fill the panel edge to edge, top-aligned; anything taller is cut off at the bottom.
+      const sc = inset.w / sw, dh = sh * sc;
+      ctx.save(); ctx.beginPath(); ctx.rect(inset.x, inset.y, inset.w, inset.h); ctx.clip();
+      try { ctx.drawImage(src, inset.x, inset.y, inset.w, dh); } catch {}
+      const m = state.ai.mouse;
+      if (m && S.pointer) drawPointerDot(ctx, inset.x + m.x * sc, inset.y + m.y * sc, 1);
+      ctx.restore();
+    }
   } else {
     ctx.fillStyle = COL.muted; ctx.font = font(30, true); ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(state.ai.track ? "Waiting for the AI tab…" : "Connect your AI tab", mb.x + mb.w / 2, mb.y + mb.h / 2 - 20);
@@ -673,8 +715,14 @@ function render() {
     ctx.save(); ctx.fillStyle = "rgba(4,8,15,.68)"; ctx.beginPath(); ctx.rect(-W, -H, 3 * W, 3 * H); ctx.roundRect(sp.x, sp.y, sp.w, sp.h, 16); ctx.fill("evenodd");
     ctx.strokeStyle = S.accent; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(sp.x, sp.y, sp.w, sp.h, 16); ctx.stroke(); ctx.restore();
   }
-  // watermark (fixed, not zoomed)
+  // pointer highlight + click ripples (constant size on screen, not zoomed)
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const toFrame = (p) => [(p[0] - v.x) * W / v.w, (p[1] - v.y) * H / v.h];
+  ripples = ripples.filter(r => now - r.t < 500);
+  for (const r of ripples) { const [fx, fy] = toFrame(r.p), k2 = (now - r.t) / 500;
+    ctx.strokeStyle = hexA(S.accent, 0.9 * (1 - k2)); ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(fx, fy, 18 + 46 * k2, 0, Math.PI * 2); ctx.stroke(); }
+  if (S.pointer && pointer) { const [fx, fy] = toFrame(pointer); drawPointerDot(ctx, fx, fy, 1); }
+  // watermark (fixed, not zoomed)
   if (S.watermark && S.wmText) {
     ctx.font = font(22, true); ctx.textBaseline = "middle"; const tw = ctx.measureText(S.wmText).width;
     const x = W - 24 - tw - 28, y = H - 44;
@@ -683,7 +731,14 @@ function render() {
     ctx.fillStyle = "#c9d3e1"; ctx.fillText(S.wmText, x + 26, y + 1);
   }
   renderOverlay();
-  if (frames % 4 === 0) { updateMeter(); updateTimer(); }
+  if (frames % 4 === 0) { updateMeter(); updateTimer(); $("stagebox").classList.toggle("zoomed", state.viewTarget.w < W - 1); }
+}
+let pointer = null, ripples = [];
+function drawPointerDot(c, x, y, s) {
+  const acc = state.settings.accent;
+  c.save(); c.fillStyle = hexA(acc, .28); c.strokeStyle = hexA(acc, .85); c.lineWidth = 3 * s;
+  c.beginPath(); c.arc(x, y, 26 * s, 0, Math.PI * 2); c.fill(); c.stroke();
+  c.fillStyle = acc; c.beginPath(); c.arc(x, y, 4 * s, 0, Math.PI * 2); c.fill(); c.restore();
 }
 function renderOverlay() {
   octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, W, H);
@@ -712,9 +767,18 @@ function toStage(e) {
 }
 function normRect(a, b) { return { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(a[0] - b[0]), h: Math.abs(a[1] - b[1]) }; }
 stage.addEventListener("pointerdown", (e) => {
-  if (e.button !== 0 || state.tool === "none") return;
+  if (e.button !== 0) return;
+  const p = toStage(e); pointer = p; ripples.push({ p, t: performance.now() });
   if (!$("calloutInput").hidden) { commitCallout(); return; }
-  stage.setPointerCapture(e.pointerId); const p = toStage(e);
+  if (state.tool === "none") {
+    if (state.viewTarget.w < W - 1) { // zoomed in: drag to move around
+      stage.setPointerCapture(e.pointerId);
+      drag = { kind: "pan", sx: e.clientX, sy: e.clientY, start: { ...state.viewTarget } };
+      $("stagebox").classList.add("panning");
+    }
+    return;
+  }
+  stage.setPointerCapture(e.pointerId);
   const T = state.tool;
   if (T === "pen" || T === "highlight") {
     const hl = T === "highlight";
@@ -724,13 +788,20 @@ stage.addEventListener("pointerdown", (e) => {
   else if (T === "badge") { state.marks.push({ type: "badge", x: p[0], y: p[1], n: badgeNext() }); }
 });
 stage.addEventListener("pointermove", (e) => {
-  if (!drag) return; const p = toStage(e);
+  const p = toStage(e); pointer = p;
+  if (!drag) return;
+  if (drag.kind === "pan") {
+    const r = stage.getBoundingClientRect(), s = drag.start;
+    const nx = clamp(s.x - (e.clientX - drag.sx) / r.width * s.w, 0, W - s.w), ny = clamp(s.y - (e.clientY - drag.sy) / r.height * s.h, 0, H - s.h);
+    state.viewTarget = { ...s, x: nx, y: ny }; Object.assign(state.view, state.viewTarget); return;
+  }
   if (drag.kind === "stroke") { const pts = drag.mark.pts, l = pts[pts.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) > 2) pts.push(p); }
   else if (drag.kind === "spot" || drag.kind === "zoom") drag.rect = normRect(drag.a, p);
   else if (drag.kind === "callout") { drag.b = p; drag.mark = Math.hypot(p[0] - drag.a[0], p[1] - drag.a[1]) > 12 ? { type: "callout", tx: drag.a[0], ty: drag.a[1], bx: p[0], by: p[1], text: "…", arrow: true } : null; }
 });
 stage.addEventListener("pointerup", () => {
   if (!drag) return; const d = drag; drag = null;
+  if (d.kind === "pan") { $("stagebox").classList.remove("panning"); return; }
   if (d.kind === "stroke") state.marks.push(d.mark);
   else if (d.kind === "spot") { state.spot = d.rect.w > 20 && d.rect.h > 20 ? d.rect : null; }
   else if (d.kind === "zoom") { if (d.rect.w > 30 && d.rect.h > 30) zoomTo(d.rect); }
@@ -739,7 +810,18 @@ stage.addEventListener("pointerup", () => {
     openCalloutInput(arrow ? { tx: d.a[0], ty: d.a[1], bx: d.b[0], by: d.b[1], arrow: true } : { tx: d.a[0], ty: d.a[1], bx: d.a[0], by: d.a[1], arrow: false });
   }
 });
-stage.addEventListener("pointercancel", () => { drag = null; });
+stage.addEventListener("pointercancel", () => { drag = null; $("stagebox").classList.remove("panning"); });
+stage.addEventListener("pointerleave", () => { if (!drag) pointer = null; });
+// Mouse wheel: zoom in/out around the pointer, keeping the spot under the pointer still.
+stage.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const r = stage.getBoundingClientRect(), t = state.viewTarget;
+  const rx = (e.clientX - r.left) / r.width, ry = (e.clientY - r.top) / r.height;
+  const px = t.x + rx * t.w, py = t.y + ry * t.h;
+  const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
+  const w = clamp(t.w * Math.exp(dy * 0.0015), 320, W), h = w * 9 / 16;
+  state.viewTarget = { x: clamp(px - rx * w, 0, W - w), y: clamp(py - ry * h, 0, H - h), w, h };
+}, { passive: false });
 function zoomTo(r) {
   let w = Math.max(r.w, r.h * 16 / 9, 420), h = w * 9 / 16; if (w > W) { w = W; h = H; }
   const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
@@ -890,7 +972,7 @@ function applySettingsUI() {
   const S = state.settings;
   $("lblSteps").value = S.labels.steps; $("lblAi").value = S.labels.ai; $("lblSources").value = S.labels.sources;
   $("optWatermark").checked = S.watermark; $("wmText").value = S.wmText; $("accent").value = S.accent;
-  $("optTabAudio").checked = S.tabAudio; $("optClearOnStep").checked = S.clearOnStep;
+  $("optTabAudio").checked = S.tabAudio; $("optClearOnStep").checked = S.clearOnStep; $("optPointer").checked = S.pointer !== false;
   document.documentElement.style.setProperty("--accent", S.accent);
   LAY = layout(); pdfCache.clear(); state.dirtySteps = state.dirtySources = true;
 }
@@ -904,6 +986,7 @@ function bindSettings() {
   $("accent").oninput = (e) => { S.accent = e.target.value; upd(); };
   $("optTabAudio").onchange = (e) => { S.tabAudio = e.target.checked; upd(); if (state.ai.track) toast("Reconnect the AI tab to apply this."); };
   $("optClearOnStep").onchange = (e) => { S.clearOnStep = e.target.checked; upd(); };
+  $("optPointer").onchange = (e) => { S.pointer = e.target.checked; upd(); };
   $("micSelect").onchange = () => { if (audio.micNode) enableMic(); };
 }
 
@@ -926,6 +1009,7 @@ document.addEventListener("keydown", (e) => {
   else if (k === "PageDown") { e.preventDefault(); goPage(1); }
   else if (k === "PageUp") { e.preventDefault(); goPage(-1); }
   else if (k === "c" || k === "C") { state.marks = []; }
+  else if (k === "l" || k === "L") { state.settings.pointer = !state.settings.pointer; applySettingsUI(); persist(); toast(state.settings.pointer ? "Pointer highlight on" : "Pointer highlight off", 1500); }
   else if (k === "Escape") { resetView(); setTool("none"); }
   else if (k === "?") { $("helpModal").hidden = false; $("helpClose").focus(); }
   else if (/^[1-4]$/.test(k)) { state.penColor = +k - 1; renderSwatches(); if (state.tool !== "pen") setTool("pen"); }
@@ -981,7 +1065,7 @@ async function init() {
   startTicker();
   if (await IDB.open()) { const saved = await IDB.get("sources"); if (saved && saved.length) { await loadSources(saved); state.srcIndex = clamp(lsGet("cais.srcIndex", 0), 0, state.sources.length - 1); renderSrcList(); toast("Restored your last setup."); } }
   if (!window.pdfjsLib) console.warn("PDF reader not bundled");
-  window.__studio = { state, render, rec, audio, version: VERSION, frames: () => frames };
+  window.__studio = { state, render, rec, audio, version: VERSION, frames: () => frames, pointer: () => pointer };
 }
 init();
 </script>

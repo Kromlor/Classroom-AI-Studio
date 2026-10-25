@@ -14,8 +14,10 @@ Draw on the stage with a pen, highlighter, spotlight, zoom, callouts and numbere
 
 1. **Steps tab:** paste your steps, one per line. A line starting with `Tip:` or `Hint:` attaches to the step above.
 2. **Sources tab:** drag in pictures or PDFs, or add a text card.
-3. **Connect AI tab:** in the share box, choose **Chrome Tab** and pick the tab with your AI tool.
+3. **Connect AI tab:** in the share box, pick the window or tab with your AI tool. Choose **Window** if you want viewers to see your mouse pointer; Chrome Tab sharing usually hides it. The top bar shows "Cursor: shown" or "Cursor: not shown" after you connect.
 4. **Settings → Turn on mic.** Then press **F9** to record and **F9** again to stop.
+
+The AI panel fills its width and lines up at the top, so a tall, narrow AI window (about 1000 pixels wide) fills the panel best.
 
 ## Keyboard shortcuts
 
@@ -27,6 +29,8 @@ Draw on the stage with a pen, highlighter, spotlight, zoom, callouts and numbere
 | PgDn / PgUp | Next or previous PDF page |
 | P, H, S, Z, T, B | Pen, highlighter, spotlight, zoom, callout, step badge |
 | V or Esc | No tool; Esc also zooms out and removes the spotlight |
+| Mouse wheel | Zoom in or out around the pointer; when zoomed, drag with no tool to move around |
+| L | Show or hide the pointer highlight on the stage |
 | 1–4 | Pen color |
 | Ctrl+Z / C | Undo last mark / clear all marks |
 
@@ -49,4 +53,9 @@ python3 build.py path/to/deps
 - [PDF.js](https://github.com/mozilla/pdf.js) 3.11.174, Apache License 2.0
 - [Atkinson Hyperlegible](https://brailleinstitute.org/freefont) font by the Braille Institute, SIL Open Font License 1.1
 
-Version 1.0
+## Changelog
+
+- **1.1:** AI panel fills its width; mouse-wheel zoom with drag to move around; pointer highlight with click ripples (L); cursor status after connecting; the highlighter button is now labeled "Highlight."
+- **1.0:** First release.
+
+Version 1.1
