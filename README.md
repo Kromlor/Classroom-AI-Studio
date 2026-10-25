@@ -29,7 +29,8 @@ The AI window fills the whole middle panel. A wide window keeps its middle and t
 | PgDn / PgUp | Next or previous PDF page |
 | P, H, S, Z, T, B | Pen, highlighter, spotlight, zoom, callout, step badge |
 | V or Esc | No tool; Esc also zooms out and removes the spotlight |
-| Mouse wheel | Zoom in or out around the pointer; when zoomed, drag with no tool to move around |
+| Mouse wheel | Over the AI panel: zoom the AI picture in or out around the pointer |
+| Drag / double-click | With no tool: move the AI picture around / show the whole AI window again |
 | L | Show or hide the pointer highlight on the stage |
 | F / Shift+F | Frame part of the AI window / reset the frame |
 | 1–4 | Pen color |
@@ -56,8 +57,9 @@ python3 build.py path/to/deps
 
 ## Changelog
 
+- **1.3:** Mouse wheel and dragging now zoom and move the AI picture only; Steps and Sources stay put. Double-click the AI panel to see the whole window. The Zoom tool (Z) still zooms the whole stage.
 - **1.2:** AI window fills the whole panel (wide windows keep their middle); new Frame tool (F) to show just part of the AI window, bigger; Shift+F resets.
 - **1.1:** AI panel fills its width; mouse-wheel zoom with drag to move around; pointer highlight with click ripples (L); cursor status after connecting; the highlighter button is now labeled "Highlight."
 - **1.0:** First release.
 
-Version 1.2
+Version 1.3
