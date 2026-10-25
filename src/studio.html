@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Classroom AI Studio v1.1</title>
+<title>Classroom AI Studio v1.2</title>
 <style>
 /*FONT_CSS*/
 [hidden]{display:none!important}
@@ -59,6 +59,7 @@ button{cursor:pointer}
 .stagebox.tool-pen #stage,.stagebox.tool-highlight #stage{cursor:crosshair}
 .stagebox.tool-spot #stage,.stagebox.tool-zoom #stage{cursor:cell}
 .stagebox.tool-callout #stage{cursor:text}
+.stagebox.tool-frame #stage{cursor:crosshair}
 .stagebox.tool-badge #stage{cursor:copy}
 .callout-input{position:absolute;z-index:5;min-width:220px;padding:8px 10px;border-radius:8px;border:2px solid var(--accent);background:#fff;color:#0e1726;font-size:16px}
 .hint{color:var(--muted);font-size:13px;text-align:center}
@@ -108,7 +109,7 @@ legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand">Classroom AI Studio<small>v1.1</small></div>
+    <div class="brand">Classroom AI Studio<small>v1.2</small></div>
     <button class="btn primary" id="btnConnect" title="Share the browser tab with your AI tool">Connect AI tab</button>
     <span class="status" id="aiStatus"><span class="dot"></span>AI tab not connected</span>
     <span class="chip" id="cursorChip" hidden></span>
@@ -127,6 +128,7 @@ legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
       <button class="tool" data-tool="highlight" title="Highlighter (H)"><svg viewBox="0 0 24 24"><path d="M9 15l-4 4h5l2-2"/><path d="M8 12l7-7 4 4-7 7-4 0z"/></svg>Highlight</button>
       <button class="tool" data-tool="spot" title="Spotlight (S): drag a box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Spot</button>
       <button class="tool" data-tool="zoom" title="Zoom (Z): drag a box. Esc zooms out"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6M10 7v6M7 10h6"/></svg>Zoom</button>
+      <button class="tool" data-tool="frame" title="Frame (F): drag a box over the AI panel to show just that part. Shift+F resets."><svg viewBox="0 0 24 24"><path d="M6 2v16h16"/><path d="M2 6h16v16"/></svg>Frame</button>
       <button class="tool" data-tool="callout" title="Callout (T): click, or drag from the target to where the box goes"><svg viewBox="0 0 24 24"><path d="M4 5h16v10H10l-4 4v-4H4z"/></svg>Note</button>
       <button class="tool" data-tool="badge" title="Step badge (B): click to place 1, 2, 3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M11 9l2-1v8"/></svg>Badge</button>
       <hr>
@@ -145,7 +147,7 @@ legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
           <input class="callout-input" id="calloutInput" type="text" placeholder="Type your note, press Enter" hidden>
         </div>
       </div>
-      <div class="hint"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> steps &nbsp; <kbd>[</kbd> <kbd>]</kbd> sources &nbsp; <kbd>PgUp</kbd> <kbd>PgDn</kbd> PDF pages &nbsp; Mouse wheel zoom &nbsp; <kbd>Esc</kbd> zoom out &nbsp; <kbd>L</kbd> pointer &nbsp; <kbd>F9</kbd> record &nbsp; <kbd>?</kbd> all keys. Only the stage is recorded.</div>
+      <div class="hint"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> steps &nbsp; <kbd>[</kbd> <kbd>]</kbd> sources &nbsp; <kbd>PgUp</kbd> <kbd>PgDn</kbd> PDF pages &nbsp; Mouse wheel zoom &nbsp; <kbd>Esc</kbd> zoom out &nbsp; <kbd>L</kbd> pointer &nbsp; <kbd>F</kbd> frame AI &nbsp; <kbd>F9</kbd> record &nbsp; <kbd>?</kbd> all keys. Only the stage is recorded.</div>
     </section>
 
     <aside class="side">
@@ -224,6 +226,8 @@ legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
       <kbd>Z</kbd><span>Zoom: drag a box</span>
       <kbd>Mouse wheel</kbd><span>Zoom in or out around the pointer; when zoomed, drag with no tool to move around</span>
       <kbd>L</kbd><span>Show or hide your pointer highlight on the stage</span>
+      <kbd>F</kbd><span>Frame: drag a box over the AI panel to show just that part</span>
+      <kbd>Shift+F</kbd><span>Reset the frame so the whole AI window fills the panel</span>
       <kbd>T</kbd><span>Callout: click, or drag from the target</span>
       <kbd>B</kbd><span>Step badge</span>
       <kbd>1-4</kbd><span>Pen color</span>
@@ -253,7 +257,7 @@ legend{padding:0 6px;color:var(--text);font-weight:700;font-size:13px}
 <script>
 "use strict";
 /* ============ constants & state ============ */
-const VERSION = "1.1";
+const VERSION = "1.2";
 const W = 1920, H = 1080;
 const $ = (id) => document.getElementById(id);
 const stage = $("stage"), ctx = stage.getContext("2d");
@@ -693,12 +697,13 @@ function render() {
   if (src) {
     const sw = src.displayWidth || src.videoWidth, sh = src.displayHeight || src.videoHeight;
     if (sw && sh) {
-      // Fit width: fill the panel edge to edge, top-aligned; anything taller is cut off at the bottom.
-      const sc = inset.w / sw, dh = sh * sc;
+      // Fill the whole panel. Default: keep the middle of a wide window (trim the sides),
+      // or the top of a tall one. With a frame, show just the framed region.
+      const reg = aiRegion(sw, sh, inset); state.ai.region = reg;
       ctx.save(); ctx.beginPath(); ctx.rect(inset.x, inset.y, inset.w, inset.h); ctx.clip();
-      try { ctx.drawImage(src, inset.x, inset.y, inset.w, dh); } catch {}
+      try { ctx.drawImage(src, reg.x, reg.y, reg.w, reg.h, inset.x, inset.y, inset.w, inset.h); } catch {}
       const m = state.ai.mouse;
-      if (m && S.pointer) drawPointerDot(ctx, inset.x + m.x * sc, inset.y + m.y * sc, 1);
+      if (m && S.pointer) drawPointerDot(ctx, inset.x + (m.x - reg.x) / reg.w * inset.w, inset.y + (m.y - reg.y) / reg.h * inset.h, 1);
       ctx.restore();
     }
   } else {
@@ -734,6 +739,36 @@ function render() {
   if (frames % 4 === 0) { updateMeter(); updateTimer(); $("stagebox").classList.toggle("zoomed", state.viewTarget.w < W - 1); }
 }
 let pointer = null, ripples = [];
+function aiInset() { const mb = LAY.Mb; return { x: mb.x + 10, y: mb.y + 10, w: mb.w - 20, h: mb.h - 20 }; }
+// Region of the shared window (in its pixels) that fills the AI panel, always at the panel's shape.
+function aiRegion(sw, sh, inset) {
+  const A = inset.w / inset.h, c = state.ai.crop;
+  if (c) { // keep the panel's shape even if the shared window was resized
+    let w = Math.min(c.w * sw, sw), h = w / A; if (h > sh) { h = sh; w = h * A; }
+    return { x: clamp(c.x * sw, 0, sw - w), y: clamp(c.y * sh, 0, sh - h), w, h };
+  }
+  if (sw / sh > A) { const w = sh * A; return { x: (sw - w) / 2, y: 0, w, h: sh }; } // wide: keep the middle
+  return { x: 0, y: 0, w: sw, h: sw / A };                                           // tall: keep the top
+}
+// Turn a box drawn on the stage into a frame (crop) of the shared window.
+function setFrameFromStageRect(r) {
+  const reg = state.ai.region, inset = aiInset(), src = state.ai.frame || state.ai.video;
+  if (!reg || !src) { toast("Connect the AI tab first, then drag a box over the AI panel."); return; }
+  const sw = src.displayWidth || src.videoWidth, sh = src.displayHeight || src.videoHeight;
+  const x0 = clamp(r.x, inset.x, inset.x + inset.w), x1 = clamp(r.x + r.w, inset.x, inset.x + inset.w);
+  const y0 = clamp(r.y, inset.y, inset.y + inset.h), y1 = clamp(r.y + r.h, inset.y, inset.y + inset.h);
+  if (x1 - x0 < 30 || y1 - y0 < 30) { toast("Drag a bigger box over the AI panel."); return; }
+  const toSx = (x) => reg.x + (x - inset.x) / inset.w * reg.w, toSy = (y) => reg.y + (y - inset.y) / inset.h * reg.h;
+  let cx = (toSx(x0) + toSx(x1)) / 2, cy = (toSy(y0) + toSy(y1)) / 2, w = toSx(x1) - toSx(x0), h = toSy(y1) - toSy(y0);
+  const A = inset.w / inset.h;
+  if (w / h > A) h = w / A; else w = h * A;                 // match the panel's shape
+  const s = Math.min(1, sw / w, sh / h); w *= s; h *= s;      // never bigger than the window
+  if (w < 160) { w = 160; h = w / A; }
+  const x = clamp(cx - w / 2, 0, sw - w), y = clamp(cy - h / 2, 0, sh - h);
+  state.ai.crop = { x: x / sw, y: y / sh, w: w / sw, h: h / sh };
+  toast("Framed. Press Shift+F to show the whole window again.", 2500);
+}
+function resetFrame() { state.ai.crop = null; toast("Frame reset: the whole AI window fills the panel.", 2000); }
 function drawPointerDot(c, x, y, s) {
   const acc = state.settings.accent;
   c.save(); c.fillStyle = hexA(acc, .28); c.strokeStyle = hexA(acc, .85); c.lineWidth = 3 * s;
@@ -742,11 +777,11 @@ function drawPointerDot(c, x, y, s) {
 }
 function renderOverlay() {
   octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, W, H);
-  if (drag && drag.kind === "zoom") {
-    const v = state.view, sx = W / v.w, sy = H / v.h, r = drag.rect;
+  if (drag && (drag.kind === "zoom" || drag.kind === "frame")) {
+    const v = state.view, sx = W / v.w, sy = H / v.h, r = drag.rect, col = drag.kind === "frame" ? "#4cc9f0" : "#fff";
     octx.setTransform(sx, 0, 0, sy, -v.x * sx, -v.y * sy);
-    octx.setLineDash([14 / sx, 10 / sx]); octx.strokeStyle = "#fff"; octx.lineWidth = 3 / sx; octx.strokeRect(r.x, r.y, r.w, r.h);
-    octx.fillStyle = "rgba(255,255,255,.08)"; octx.fillRect(r.x, r.y, r.w, r.h);
+    octx.setLineDash([14 / sx, 10 / sx]); octx.strokeStyle = col; octx.lineWidth = 3 / sx; octx.strokeRect(r.x, r.y, r.w, r.h);
+    octx.fillStyle = drag.kind === "frame" ? "rgba(76,201,240,.12)" : "rgba(255,255,255,.08)"; octx.fillRect(r.x, r.y, r.w, r.h);
   }
 }
 // Ticker in a Worker: keeps drawing (and recording) when this tab is in the background.
@@ -783,7 +818,7 @@ stage.addEventListener("pointerdown", (e) => {
   if (T === "pen" || T === "highlight") {
     const hl = T === "highlight";
     drag = { kind: "stroke", mark: { type: "stroke", color: hl ? "#ffe600" : PEN_COLORS[state.penColor], width: hl ? 28 : 7, alpha: hl ? .38 : 1, pts: [p] } };
-  } else if (T === "spot" || T === "zoom") { drag = { kind: T, a: p, rect: normRect(p, p) }; }
+  } else if (T === "spot" || T === "zoom" || T === "frame") { drag = { kind: T, a: p, rect: normRect(p, p) }; }
   else if (T === "callout") { drag = { kind: "callout", a: p, b: p }; }
   else if (T === "badge") { state.marks.push({ type: "badge", x: p[0], y: p[1], n: badgeNext() }); }
 });
@@ -796,7 +831,7 @@ stage.addEventListener("pointermove", (e) => {
     state.viewTarget = { ...s, x: nx, y: ny }; Object.assign(state.view, state.viewTarget); return;
   }
   if (drag.kind === "stroke") { const pts = drag.mark.pts, l = pts[pts.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) > 2) pts.push(p); }
-  else if (drag.kind === "spot" || drag.kind === "zoom") drag.rect = normRect(drag.a, p);
+  else if (drag.kind === "spot" || drag.kind === "zoom" || drag.kind === "frame") drag.rect = normRect(drag.a, p);
   else if (drag.kind === "callout") { drag.b = p; drag.mark = Math.hypot(p[0] - drag.a[0], p[1] - drag.a[1]) > 12 ? { type: "callout", tx: drag.a[0], ty: drag.a[1], bx: p[0], by: p[1], text: "…", arrow: true } : null; }
 });
 stage.addEventListener("pointerup", () => {
@@ -805,6 +840,7 @@ stage.addEventListener("pointerup", () => {
   if (d.kind === "stroke") state.marks.push(d.mark);
   else if (d.kind === "spot") { state.spot = d.rect.w > 20 && d.rect.h > 20 ? d.rect : null; }
   else if (d.kind === "zoom") { if (d.rect.w > 30 && d.rect.h > 30) zoomTo(d.rect); }
+  else if (d.kind === "frame") { setFrameFromStageRect(d.rect); }
   else if (d.kind === "callout") {
     const arrow = Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1]) > 12;
     openCalloutInput(arrow ? { tx: d.a[0], ty: d.a[1], bx: d.b[0], by: d.b[1], arrow: true } : { tx: d.a[0], ty: d.a[1], bx: d.a[0], by: d.a[1], arrow: false });
@@ -1000,7 +1036,8 @@ document.addEventListener("keydown", (e) => {
   const k = e.key;
   if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "z") { e.preventDefault(); state.marks.pop(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  const map = { v: "none", p: "pen", h: "highlight", s: "spot", z: "zoom", t: "callout", b: "badge" };
+  if (k === "F" && e.shiftKey) { resetFrame(); return; }
+  const map = { v: "none", p: "pen", h: "highlight", s: "spot", z: "zoom", t: "callout", b: "badge", f: "frame" };
   if (map[k.toLowerCase()]) { setTool(map[k.toLowerCase()]); return; }
   if (k === "ArrowRight") { e.preventDefault(); goStep(1); }
   else if (k === "ArrowLeft") { e.preventDefault(); goStep(-1); }

@@ -17,7 +17,7 @@ Draw on the stage with a pen, highlighter, spotlight, zoom, callouts and numbere
 3. **Connect AI tab:** in the share box, pick the window or tab with your AI tool. Choose **Window** if you want viewers to see your mouse pointer; Chrome Tab sharing usually hides it. The top bar shows "Cursor: shown" or "Cursor: not shown" after you connect.
 4. **Settings → Turn on mic.** Then press **F9** to record and **F9** again to stop.
 
-The AI panel fills its width and lines up at the top, so a tall, narrow AI window (about 1000 pixels wide) fills the panel best.
+The AI window fills the whole middle panel. A wide window keeps its middle and trims the sides. To show just one part, like the chat column, press **F** and drag a box over the AI panel; that part then fills the panel with bigger text. **Shift+F** shows the whole window again.
 
 ## Keyboard shortcuts
 
@@ -31,6 +31,7 @@ The AI panel fills its width and lines up at the top, so a tall, narrow AI windo
 | V or Esc | No tool; Esc also zooms out and removes the spotlight |
 | Mouse wheel | Zoom in or out around the pointer; when zoomed, drag with no tool to move around |
 | L | Show or hide the pointer highlight on the stage |
+| F / Shift+F | Frame part of the AI window / reset the frame |
 | 1–4 | Pen color |
 | Ctrl+Z / C | Undo last mark / clear all marks |
 
@@ -55,7 +56,8 @@ python3 build.py path/to/deps
 
 ## Changelog
 
+- **1.2:** AI window fills the whole panel (wide windows keep their middle); new Frame tool (F) to show just part of the AI window, bigger; Shift+F resets.
 - **1.1:** AI panel fills its width; mouse-wheel zoom with drag to move around; pointer highlight with click ripples (L); cursor status after connecting; the highlighter button is now labeled "Highlight."
 - **1.0:** First release.
 
-Version 1.1
+Version 1.2
